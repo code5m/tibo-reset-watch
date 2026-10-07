@@ -1,11 +1,11 @@
 {
   "version": 1,
   "lastSuccessAt": null,
-  "lastFailureAt": null,
+  "lastFailureAt": "2026-10-07T19:00:37.550Z",
   "lastDailyHeartbeatDate": null,
-  "consecutiveFailures": 0,
+  "consecutiveFailures": 1,
   "failureAlertedForStreak": false,
-  "lastError": null,
+  "lastError": "public-feed: Public Feed is stale; last success: 2026-08-23T15:45:04.635Z",
   "lastSource": null,
   "lastSourceAgeMinutes": null,
   "cachedXUserId": null
