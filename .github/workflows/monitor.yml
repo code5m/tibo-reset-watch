@@ -38,22 +38,29 @@ jobs:
           SERVERCHAN_SENDKEY: ${{ secrets.SERVERCHAN_SENDKEY }}
           WXPUSHER_APP_TOKEN: ${{ secrets.WXPUSHER_APP_TOKEN }}
           WXPUSHER_UIDS: ${{ secrets.WXPUSHER_UIDS }}
+          X_BEARER_TOKEN: ${{ secrets.X_BEARER_TOKEN }}
           TIBO_RESET_FEED_URL: ${{ vars.TIBO_RESET_FEED_URL }}
+          SOURCE_MODE: ${{ vars.SOURCE_MODE }}
+          FEED_MAX_AGE_MINUTES: "20"
           BOOTSTRAP_NOTIFY_LATEST: "true"
           BOOTSTRAP_MAX_AGE_HOURS: "24"
           ALERT_ON_HINTS: "false"
           DISCOVER_PROJECTS: "true"
+          PROJECT_DIGEST_HOUR_CN: "20"
+          FAILURE_ALERT_THRESHOLD: "3"
         run: npm run monitor
 
-      - name: Persist state
+      - name: Persist state and health
+        if: always()
         run: |
-          if git diff --quiet -- state/notified.json; then
+          if git diff --quiet -- state/notified.json state/health.json; then
             echo "No state change."
             exit 0
           fi
 
           git config user.name "tibo-reset-bot"
           git config user.email "tibo-reset-bot@users.noreply.github.com"
-          git add state/notified.json
+          git add state/notified.json state/health.json
           git commit -m "chore: persist monitor state"
+          git pull --rebase origin main
           git push
