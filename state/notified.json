@@ -1,6 +1,9 @@
 {
-  "version": 1,
+  "version": 2,
   "initialized": false,
+  "initializedAt": null,
   "seen": {},
-  "notified": {}
+  "notified": {},
+  "projectQueue": [],
+  "lastProjectDigestDate": null
 }
