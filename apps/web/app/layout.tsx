@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import "./globals.css";
 import { nav, site } from "@/lib/site";
+import { Analytics } from "@/components/Analytics";
 
 export const metadata: Metadata = {
   metadataBase: new URL(site.url),
@@ -99,6 +100,7 @@ export default function RootLayout({
             </Link>
           </div>
         </header>
+        <Analytics />
         <main>{children}</main>
         <footer className="site-footer">
           <div className="shell footer-grid">
