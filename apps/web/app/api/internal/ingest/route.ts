@@ -32,6 +32,28 @@ export async function POST(request: Request) {
         JSON.stringify(payload.metadata || {})
       ]
     );
+
+    if (["completed", "scheduled", "banked"].includes(payload.kind)) {
+      const dedupeKey = "signal:" + payload.sourcePostId + ":" + payload.kind;
+      const campaignBody = [
+        payload.title,
+        "",
+        payload.body,
+        "",
+        payload.resetAt ? "预计 Reset：" + payload.resetAt : "",
+        "原始来源：" + payload.sourceUrl,
+        "",
+        "ResetWatch 提醒：请结合你账户自己的 Usage / status 判断实际剩余额度。"
+      ].filter(Boolean).join("\n");
+
+      await client.query(
+        `insert into campaigns(title, body, audience, channels, status, scheduled_at, dedupe_key)
+         values($1,$2,'reset','["email","wechat","sms","alipay"]'::jsonb,'scheduled',now(),$3)
+         on conflict(dedupe_key) where dedupe_key is not null do nothing`,
+        [payload.title, campaignBody, dedupeKey]
+      );
+    }
+
     return NextResponse.json({ ok: true });
   }
 
