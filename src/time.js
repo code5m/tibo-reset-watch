@@ -8,13 +8,9 @@ const CHINA_FORMATTER = new Intl.DateTimeFormat("zh-CN", {
   hour12: false
 });
 
-export function formatChinaTime(input) {
+function formatParts(input, timeZone) {
   const date = input instanceof Date ? input : new Date(input);
-  if (Number.isNaN(date.getTime())) return "未知";
-  return CHINA_FORMATTER.format(date).replace(/\//g, "-");
-}
-
-function zonedParts(date, timeZone) {
+  if (Number.isNaN(date.getTime())) return null;
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone,
     year: "numeric",
@@ -25,12 +21,27 @@ function zonedParts(date, timeZone) {
     second: "2-digit",
     hour12: false
   }).formatToParts(date);
-
   return Object.fromEntries(parts.map(part => [part.type, part.value]));
 }
 
+export function formatChinaTime(input) {
+  const date = input instanceof Date ? input : new Date(input);
+  if (Number.isNaN(date.getTime())) return "未知";
+  return CHINA_FORMATTER.format(date).replace(/\//g, "-");
+}
+
+export function chinaDateKey(input = new Date()) {
+  const p = formatParts(input, "Asia/Shanghai");
+  return p ? p.year + "-" + p.month + "-" + p.day : "unknown";
+}
+
+export function chinaHour(input = new Date()) {
+  const p = formatParts(input, "Asia/Shanghai");
+  return p ? Number(p.hour) : -1;
+}
+
 function zoneOffsetMs(date, timeZone) {
-  const p = zonedParts(date, timeZone);
+  const p = formatParts(date, timeZone);
   const asUTC = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second);
   return asUTC - date.getTime();
 }
@@ -76,7 +87,7 @@ export function inferResetTime(text, createdAt) {
 
   if (!sourceZone) return null;
 
-  const p = zonedParts(base, sourceZone);
+  const p = formatParts(base, sourceZone);
   let year = +p.year;
   let month = +p.month;
   let day = +p.day;
@@ -88,11 +99,10 @@ export function inferResetTime(text, createdAt) {
     day = tmp.getUTCDate();
   }
 
-  return localTimeToUtc({
-    year,
-    month,
-    day,
-    hour,
-    minute: +mm
-  }, sourceZone);
+  return localTimeToUtc({ year, month, day, hour, minute: +mm }, sourceZone);
+}
+
+export function hoursUntil(target, now = new Date()) {
+  if (!(target instanceof Date) || Number.isNaN(target.getTime())) return null;
+  return (target.getTime() - now.getTime()) / 3_600_000;
 }
