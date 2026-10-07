@@ -39,6 +39,8 @@ jobs:
           WXPUSHER_APP_TOKEN: ${{ secrets.WXPUSHER_APP_TOKEN }}
           WXPUSHER_UIDS: ${{ secrets.WXPUSHER_UIDS }}
           X_BEARER_TOKEN: ${{ secrets.X_BEARER_TOKEN }}
+          INGEST_SECRET: ${{ secrets.INGEST_SECRET }}
+          INGEST_URL: ${{ vars.INGEST_URL }}
           TIBO_RESET_FEED_URL: ${{ vars.TIBO_RESET_FEED_URL }}
           SOURCE_MODE: ${{ vars.SOURCE_MODE }}
           FEED_MAX_AGE_MINUTES: "20"
