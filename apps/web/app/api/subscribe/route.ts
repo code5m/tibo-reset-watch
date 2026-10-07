@@ -78,6 +78,7 @@ export async function POST(request: Request) {
          on conflict (phone) where phone is not null
          do update set
            wechat_target = coalesce(excluded.wechat_target, subscribers.wechat_target),
+           alipay_target = coalesce(excluded.alipay_target, subscribers.alipay_target),
            name = coalesce(excluded.name, subscribers.name),
            status = 'active',
            channels = excluded.channels,
