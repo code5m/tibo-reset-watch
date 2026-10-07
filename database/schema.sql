@@ -5,6 +5,7 @@ create table if not exists subscribers (
   email text,
   phone text,
   wechat_target text,
+  alipay_target text,
   name text,
   status text not null default 'active' check (status in ('active','pending','unsubscribed')),
   channels jsonb not null default '[]'::jsonb,
@@ -13,7 +14,7 @@ create table if not exists subscribers (
   consent_at timestamptz not null default now(),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  check (email is not null or phone is not null or wechat_target is not null)
+  check (email is not null or phone is not null or wechat_target is not null or alipay_target is not null)
 );
 
 create unique index if not exists subscribers_email_unique
