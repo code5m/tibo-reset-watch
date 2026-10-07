@@ -11,7 +11,7 @@ export default async function ContentPage() {
       </div>
       <div className="table-card">
         <table>
-          <thead><tr><th>标题</th><th>类型</th><th>状态</th><th>Slug</th><th>发布时间</th></tr></thead>
+          <thead><tr><th>标题</th><th>类型</th><th>状态</th><th>Slug</th><th>发布时间</th><th>操作</th></tr></thead>
           <tbody>
             {items.map(item => (
               <tr key={item.id}>
@@ -20,9 +20,10 @@ export default async function ContentPage() {
                 <td><span className="tag">{item.status}</span></td>
                 <td>{item.slug}</td>
                 <td>{item.published_at ? new Date(item.published_at).toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" }) : "-"}</td>
+                <td><a className="inline-action" href={"/admin/content/" + item.id}>编辑</a></td>
               </tr>
             ))}
-            {!items.length ? <tr><td colSpan={5} className="muted">还没有内容。先创建第一篇 Reset 指南。</td></tr> : null}
+            {!items.length ? <tr><td colSpan={6} className="muted">还没有内容。先创建第一篇 Reset 指南。</td></tr> : null}
           </tbody>
         </table>
       </div>
