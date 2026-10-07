@@ -3,29 +3,44 @@ import path from "node:path";
 import crypto from "node:crypto";
 
 export function createEmptyState() {
-  return { version: 1, initialized: false, seen: {}, notified: {} };
+  return {
+    version: 2,
+    initialized: false,
+    initializedAt: null,
+    seen: {},
+    notified: {},
+    projectQueue: [],
+    lastProjectDigestDate: null
+  };
 }
 
 export function loadState(statePath) {
   try {
     const parsed = JSON.parse(fs.readFileSync(statePath, "utf8"));
+    const empty = createEmptyState();
     return {
-      version: 1,
+      ...empty,
       initialized: Boolean(parsed.initialized),
       initializedAt: parsed.initializedAt || null,
       seen: parsed.seen && typeof parsed.seen === "object" ? parsed.seen : {},
-      notified: parsed.notified && typeof parsed.notified === "object" ? parsed.notified : {}
+      notified: parsed.notified && typeof parsed.notified === "object" ? parsed.notified : {},
+      projectQueue: Array.isArray(parsed.projectQueue) ? parsed.projectQueue : [],
+      lastProjectDigestDate: parsed.lastProjectDigestDate || null
     };
   } catch {
     return createEmptyState();
   }
 }
 
+export function saveJsonAtomic(filePath, value) {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  const tempPath = filePath + ".tmp";
+  fs.writeFileSync(tempPath, JSON.stringify(value, null, 2) + "\n");
+  fs.renameSync(tempPath, filePath);
+}
+
 export function saveState(statePath, state) {
-  fs.mkdirSync(path.dirname(statePath), { recursive: true });
-  const tempPath = statePath + ".tmp";
-  fs.writeFileSync(tempPath, JSON.stringify(state, null, 2) + "\n");
-  fs.renameSync(tempPath, statePath);
+  saveJsonAtomic(statePath, state);
 }
 
 export function postVersionKey(id, text) {
@@ -40,4 +55,11 @@ export function pruneSeen(state, max = 1500) {
     .sort((a, b) => String(a[1]).localeCompare(String(b[1])))
     .slice(0, entries.length - max)
     .forEach(([key]) => delete state.seen[key]);
+}
+
+export function pruneProjectQueue(state, max = 20) {
+  if (!Array.isArray(state.projectQueue)) state.projectQueue = [];
+  if (state.projectQueue.length > max) {
+    state.projectQueue = state.projectQueue.slice(-max);
+  }
 }
