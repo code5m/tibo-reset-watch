@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { isAdmin } from "@/lib/admin-auth";
 import { db } from "@/lib/db";
+import { submitIndexNow } from "@/lib/indexnow";
 
 function clean(value: FormDataEntryValue | null, max = 10000) {
   return String(value || "").trim().slice(0, max);
@@ -32,6 +33,9 @@ export async function POST(request: Request) {
        values($1,$2,$3,$4,$5,$6,$7,$8,$9,case when $6='published' then now() else null end)`,
       [title, slug, excerpt, body, contentType, status, seoTitle || null, seoDescription || null, geoSummary || null]
     );
+    if (status === "published") {
+      await submitIndexNow(["/insights/" + slug, "/sitemap.xml", "/feed.xml"]);
+    }
     return NextResponse.redirect(new URL("/admin/content", request.url), 303);
   } catch (error) {
     console.error(error);
