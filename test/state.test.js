@@ -6,12 +6,15 @@ test("post version changes when text changes", () => {
   assert.notEqual(postVersionKey("1", "a"), postVersionKey("1", "b"));
 });
 
-test("empty state has expected shape", () => {
+test("empty state has v2 reliability shape", () => {
   assert.deepEqual(createEmptyState(), {
-    version: 1,
+    version: 2,
     initialized: false,
+    initializedAt: null,
     seen: {},
-    notified: {}
+    notified: {},
+    projectQueue: [],
+    lastProjectDigestDate: null
   });
 });
 
