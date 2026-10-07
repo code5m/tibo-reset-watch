@@ -20,7 +20,7 @@ export async function getDashboardMetrics() {
 
 export async function getSubscribers(limit = 100) {
   return query<any>(
-    `select id, email, phone, wechat_target, name, status, channels, interests, source, created_at
+    `select id, email, phone, wechat_target, alipay_target, name, status, channels, interests, source, created_at
        from subscribers
       order by created_at desc
       limit $1`,
