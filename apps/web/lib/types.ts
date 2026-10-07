@@ -57,7 +57,7 @@ export type Campaign = {
   body: string;
   audience: string;
   channels: string[];
-  status: "draft" | "scheduled" | "sent";
+  status: "draft" | "scheduled" | "sending" | "sent";
   scheduledAt: string | null;
   sentAt: string | null;
   createdAt: string;
