@@ -60,10 +60,14 @@ export async function notifyServerChan(title, body) {
   const key = process.env.SERVERCHAN_SENDKEY;
   if (!key) return false;
 
-  const host = key.startsWith("sctp")
-    ? "https://" + key.split("t")[1] + ".push.ft07.com"
-    : "https://sctapi.ftqq.com";
-  const url = host + "/" + encodeURIComponent(key) + ".send";
+  let url;
+  if (key.startsWith("sctp")) {
+    const match = key.match(/^sctp(\d+)t/);
+    if (!match) throw new Error("Invalid ServerChan SC3 SendKey format");
+    url = "https://" + match[1] + ".push.ft07.com/send/" + encodeURIComponent(key) + ".send";
+  } else {
+    url = "https://sctapi.ftqq.com/" + encodeURIComponent(key) + ".send";
+  }
   const form = new URLSearchParams({ title, desp: body });
 
   const response = await fetchWithRetry(url, {
