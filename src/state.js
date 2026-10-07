@@ -4,13 +4,14 @@ import crypto from "node:crypto";
 
 export function createEmptyState() {
   return {
-    version: 2,
+    version: 3,
     initialized: false,
     initializedAt: null,
     seen: {},
     notified: {},
     projectQueue: [],
-    lastProjectDigestDate: null
+    lastProjectDigestDate: null,
+    scheduledReminders: {}
   };
 }
 
@@ -25,7 +26,10 @@ export function loadState(statePath) {
       seen: parsed.seen && typeof parsed.seen === "object" ? parsed.seen : {},
       notified: parsed.notified && typeof parsed.notified === "object" ? parsed.notified : {},
       projectQueue: Array.isArray(parsed.projectQueue) ? parsed.projectQueue : [],
-      lastProjectDigestDate: parsed.lastProjectDigestDate || null
+      lastProjectDigestDate: parsed.lastProjectDigestDate || null,
+      scheduledReminders: parsed.scheduledReminders && typeof parsed.scheduledReminders === "object"
+        ? parsed.scheduledReminders
+        : {}
     };
   } catch {
     return createEmptyState();
@@ -61,5 +65,19 @@ export function pruneProjectQueue(state, max = 20) {
   if (!Array.isArray(state.projectQueue)) state.projectQueue = [];
   if (state.projectQueue.length > max) {
     state.projectQueue = state.projectQueue.slice(-max);
+  }
+}
+
+export function pruneScheduledReminders(state, now = new Date()) {
+  if (!state.scheduledReminders || typeof state.scheduledReminders !== "object") {
+    state.scheduledReminders = {};
+    return;
+  }
+
+  for (const [key, item] of Object.entries(state.scheduledReminders)) {
+    const target = new Date(item?.targetAt || "");
+    if (Number.isNaN(target.getTime()) || now.getTime() - target.getTime() > 6 * 3_600_000) {
+      delete state.scheduledReminders[key];
+    }
   }
 }
