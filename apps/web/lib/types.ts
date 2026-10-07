@@ -1,10 +1,11 @@
-export type SubscriberChannel = "email" | "wechat" | "sms";
+export type SubscriberChannel = "email" | "wechat" | "sms" | "alipay";
 
 export type Subscriber = {
   id: string;
   email: string | null;
   phone: string | null;
   wechatTarget: string | null;
+  alipayTarget: string | null;
   name: string | null;
   status: "active" | "pending" | "unsubscribed";
   channels: SubscriberChannel[];
