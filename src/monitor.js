@@ -1,13 +1,15 @@
 import { classifyProjectLead, classifyReset } from "./classify.js";
 import { DEFAULT_FEED_URL, fetchPosts } from "./feed.js";
 import { loadHealth, recordFailure, recordSuccess, saveHealth } from "./health.js";
-import { sendWeChat } from "./notifiers.js";
+import { updatePublicEvents } from "./public-events.js";
+import { sendNotification } from "./notifiers.js";
 import { loadState, pruneProjectQueue, pruneScheduledReminders, pruneSeen, saveState } from "./state.js";
 import { chinaDateKey, chinaHour, formatChinaTime, hoursUntil, inferResetTime } from "./time.js";
 
 const FEED_URL = process.env.TIBO_RESET_FEED_URL || DEFAULT_FEED_URL;
 const STATE_PATH = process.env.STATE_PATH || "state/notified.json";
 const HEALTH_PATH = process.env.HEALTH_PATH || "state/health.json";
+const PUBLIC_EVENTS_PATH = process.env.PUBLIC_EVENTS_PATH || "state/public-events.json";
 const SOURCE_MODE = process.env.SOURCE_MODE || "auto";
 const FEED_MAX_AGE_MINUTES = Number(process.env.FEED_MAX_AGE_MINUTES || 20);
 const BOOTSTRAP_NOTIFY_LATEST = (process.env.BOOTSTRAP_NOTIFY_LATEST || "true").toLowerCase() === "true";
@@ -71,7 +73,7 @@ async function deliverReset(post, classification, state) {
   const key = "reset:" + post.versionKey;
   if (state.notified[key]) return false;
 
-  const delivery = await sendWeChat({
+  const delivery = await sendNotification({
     title: resetTitle(classification.kind),
     body: resetBody(post, classification),
     url: post.url
@@ -130,7 +132,7 @@ async function maybeSendScheduledResetReminders(state, now = new Date()) {
     const minutes = (target.getTime() - now.getTime()) / 60_000;
     if (minutes > 60 || minutes < 0) continue;
 
-    const delivery = await sendWeChat({
+    const delivery = await sendNotification({
       title: "⏳ Tibo Reset：预计 1 小时内重置",
       body: [
         "Tibo 之前公布的 Reset 已进入临近窗口。",
@@ -183,7 +185,7 @@ async function maybeSendProjectDigest(state, now = new Date()) {
 
   lines.push("建议：只挑真正与你当前项目相关的内容投入 Codex / Work 额度。");
 
-  const delivery = await sendWeChat({
+  const delivery = await sendNotification({
     title: "📌 Tibo 项目线索日报（" + items.length + " 条）",
     body: lines.join("\n"),
     url: items[0]?.url || "https://x.com/thsottiaux"
@@ -251,7 +253,7 @@ async function maybeAlertMonitorFailure(health) {
     Number(health.consecutiveFailures || 0) >= FAILURE_ALERT_THRESHOLD &&
     !health.failureAlertedForStreak
   ) {
-    await sendWeChat({
+    await sendNotification({
       title: "⚠️ Tibo Reset Watch 连续抓取失败",
       body: [
         "监控连续失败次数：" + health.consecutiveFailures,
@@ -280,6 +282,8 @@ async function main() {
       cachedXUserId: health.cachedXUserId,
       feedMaxAgeMinutes: FEED_MAX_AGE_MINUTES
     });
+
+    updatePublicEvents(PUBLIC_EVENTS_PATH, result.posts);
 
     if (!state.initialized) {
       await bootstrap(result.posts, state);

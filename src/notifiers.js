@@ -56,6 +56,20 @@ export function validateWxPusherResponse(payload) {
   return true;
 }
 
+export function wxPusherTargets(env = process.env) {
+  const uids = String(env.WXPUSHER_UIDS || "")
+    .split(",")
+    .map(value => value.trim())
+    .filter(Boolean);
+
+  const topicIds = String(env.WXPUSHER_TOPIC_IDS || env.WXPUSHER_TOPIC_ID || "")
+    .split(",")
+    .map(value => Number(value.trim()))
+    .filter(value => Number.isInteger(value) && value > 0);
+
+  return { uids, topicIds };
+}
+
 export async function notifyServerChan(title, body) {
   const key = process.env.SERVERCHAN_SENDKEY;
   if (!key) return false;
@@ -68,8 +82,8 @@ export async function notifyServerChan(title, body) {
   } else {
     url = "https://sctapi.ftqq.com/" + encodeURIComponent(key) + ".send";
   }
-  const form = new URLSearchParams({ title, desp: body });
 
+  const form = new URLSearchParams({ title, desp: body });
   const response = await fetchWithRetry(url, {
     method: "POST",
     body: form
@@ -81,61 +95,102 @@ export async function notifyServerChan(title, body) {
 
 export async function notifyWxPusher(title, body, url) {
   const token = process.env.WXPUSHER_APP_TOKEN;
-  const uids = (process.env.WXPUSHER_UIDS || "")
-    .split(",")
-    .map(value => value.trim())
-    .filter(Boolean);
+  const { uids, topicIds } = wxPusherTargets();
+  if (!token || (!uids.length && !topicIds.length)) return false;
 
-  if (!token || !uids.length) return false;
+  const payload = {
+    appToken: token,
+    content: body,
+    summary: title,
+    contentType: 1,
+    url
+  };
+  if (uids.length) payload.uids = uids;
+  if (topicIds.length) payload.topicIds = topicIds;
 
   const response = await fetchWithRetry("https://wxpusher.zjiecode.com/api/send/message", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      appToken: token,
-      content: body,
-      summary: title,
-      contentType: 1,
-      uids,
-      url
-    })
+    body: JSON.stringify(payload)
   });
 
   validateWxPusherResponse(await parseJsonResponse(response, "WxPusher"));
   return true;
 }
 
-export async function sendWeChat({ title, body, url }) {
+export async function notifySubscriberGateway({ title, body, url, event = null }) {
+  const endpoint = process.env.SUBSCRIBER_GATEWAY_URL;
+  if (!endpoint) return false;
+
+  const token = process.env.SUBSCRIBER_GATEWAY_TOKEN || "";
+  const headers = { "content-type": "application/json" };
+  if (token) headers.authorization = "Bearer " + token;
+
+  const response = await fetchWithRetry(endpoint, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      title,
+      body,
+      url,
+      event,
+      source: "tibo-reset-watch"
+    })
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error("Subscriber gateway HTTP " + response.status + ": " + text.slice(0, 300));
+  }
+  return true;
+}
+
+export async function sendNotification({ title, body, url, event = null }) {
   if ((process.env.DRY_RUN || "false").toLowerCase() === "true") {
     console.log("[DRY_RUN]", title);
     console.log(body);
     return { delivered: true, providers: ["dry-run"] };
   }
 
+  const targets = wxPusherTargets();
   const configured = Boolean(
     process.env.SERVERCHAN_SENDKEY ||
-    (process.env.WXPUSHER_APP_TOKEN && process.env.WXPUSHER_UIDS)
+    (process.env.WXPUSHER_APP_TOKEN && (targets.uids.length || targets.topicIds.length)) ||
+    process.env.SUBSCRIBER_GATEWAY_URL
   );
 
   if (!configured) {
-    throw new Error("No WeChat notifier configured. Set SERVERCHAN_SENDKEY or WXPUSHER_APP_TOKEN + WXPUSHER_UIDS.");
+    throw new Error(
+      "No notifier configured. Set SERVERCHAN_SENDKEY, WXPUSHER_APP_TOKEN + UID/topic, or SUBSCRIBER_GATEWAY_URL."
+    );
   }
 
-  const results = await Promise.allSettled([
-    notifyServerChan(title, body),
-    notifyWxPusher(title, body, url)
-  ]);
+  const tasks = [
+    ["serverchan", () => notifyServerChan(title, body)],
+    ["wxpusher", () => notifyWxPusher(title, body, url)],
+    ["subscriber-gateway", () => notifySubscriberGateway({ title, body, url, event })]
+  ];
 
+  const results = await Promise.allSettled(tasks.map(([, run]) => run()));
   const providers = [];
-  if (results[0].status === "fulfilled" && results[0].value === true) providers.push("serverchan");
-  if (results[1].status === "fulfilled" && results[1].value === true) providers.push("wxpusher");
+  const reasons = [];
+
+  for (let i = 0; i < results.length; i++) {
+    const result = results[i];
+    const name = tasks[i][0];
+    if (result.status === "fulfilled" && result.value === true) {
+      providers.push(name);
+    } else if (result.status === "rejected") {
+      reasons.push(name + ": " + (result.reason?.message || String(result.reason)));
+    }
+  }
 
   if (!providers.length) {
-    const reasons = results
-      .filter(result => result.status === "rejected")
-      .map(result => result.reason?.message || String(result.reason));
-    throw new Error("All configured WeChat notifiers failed: " + reasons.join("; "));
+    throw new Error("All configured notifiers failed: " + reasons.join("; "));
   }
 
   return { delivered: true, providers };
 }
+
+// Backward-compatible alias for integrations that imported the v2 name.
+export const sendWeChat = sendNotification;
