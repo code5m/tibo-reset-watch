@@ -2,7 +2,7 @@ import { classifyProjectLead, classifyReset } from "./classify.js";
 import { DEFAULT_FEED_URL, fetchPosts } from "./feed.js";
 import { loadHealth, recordFailure, recordSuccess, saveHealth } from "./health.js";
 import { sendWeChat } from "./notifiers.js";
-import { loadState, pruneProjectQueue, pruneSeen, saveState } from "./state.js";
+import { loadState, pruneProjectQueue, pruneScheduledReminders, pruneSeen, saveState } from "./state.js";
 import { chinaDateKey, chinaHour, formatChinaTime, hoursUntil, inferResetTime } from "./time.js";
 
 const FEED_URL = process.env.TIBO_RESET_FEED_URL || DEFAULT_FEED_URL;
@@ -83,6 +83,20 @@ async function deliverReset(post, classification, state) {
     providers: delivery.providers,
     notifiedAt: new Date().toISOString()
   };
+
+  if (classification.kind === "scheduled") {
+    const target = inferResetTime(post.text, post.createdAt);
+    if (target) {
+      state.scheduledReminders[key] = {
+        postId: post.id,
+        url: post.url,
+        text: post.text,
+        targetAt: target.toISOString(),
+        oneHourReminderSent: false
+      };
+    }
+  }
+
   return true;
 }
 
@@ -102,6 +116,42 @@ function enqueueProject(post, lead, state) {
   });
   pruneProjectQueue(state);
   return true;
+}
+
+async function maybeSendScheduledResetReminders(state, now = new Date()) {
+  let sent = 0;
+
+  for (const [key, item] of Object.entries(state.scheduledReminders || {})) {
+    if (item.oneHourReminderSent) continue;
+
+    const target = new Date(item.targetAt);
+    if (Number.isNaN(target.getTime())) continue;
+
+    const minutes = (target.getTime() - now.getTime()) / 60_000;
+    if (minutes > 60 || minutes < 0) continue;
+
+    const delivery = await sendWeChat({
+      title: "⏳ Tibo Reset：预计 1 小时内重置",
+      body: [
+        "Tibo 之前公布的 Reset 已进入临近窗口。",
+        "",
+        "预计重置（北京时间）：" + formatChinaTime(target),
+        "原帖：" + item.url,
+        "",
+        "现在建议先打开 ChatGPT Settings → Usage，或在 Codex CLI 输入 /status，确认真实剩余额度。",
+        "如果仍有高价值待办，再优先安排代码审查、测试、文档、调研或实现任务；不要为了清零而制造无意义任务。"
+      ].join("\n"),
+      url: item.url
+    });
+
+    item.oneHourReminderSent = true;
+    item.reminderProviders = delivery.providers;
+    item.remindedAt = now.toISOString();
+    state.scheduledReminders[key] = item;
+    sent++;
+  }
+
+  return sent;
 }
 
 async function maybeSendProjectDigest(state, now = new Date()) {
@@ -238,10 +288,16 @@ async function main() {
       console.log("Processed", result.posts.length, "posts; sent", counts.sent, "reset alert(s); queued", counts.queued, "project lead(s).");
     }
 
+    const reminderCount = await maybeSendScheduledResetReminders(state);
+    if (reminderCount) {
+      console.log("Sent", reminderCount, "pre-reset reminder(s).");
+    }
+
     await maybeSendProjectDigest(state);
 
     pruneSeen(state);
     pruneProjectQueue(state);
+    pruneScheduledReminders(state);
     saveState(STATE_PATH, state);
 
     const healthResult = recordSuccess(health, {
