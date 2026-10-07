@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "lastSuccessAt": null,
+  "lastFailureAt": null,
+  "lastDailyHeartbeatDate": null,
+  "consecutiveFailures": 0,
+  "failureAlertedForStreak": false,
+  "lastError": null,
+  "lastSource": null,
+  "lastSourceAgeMinutes": null,
+  "cachedXUserId": null
+}
