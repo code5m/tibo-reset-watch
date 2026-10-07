@@ -1,0 +1,23 @@
+name: Customer Distribution
+
+on:
+  schedule:
+    - cron: "4-59/5 * * * *"
+  workflow_dispatch:
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Dispatch due campaigns
+        env:
+          DISTRIBUTION_URL: ${{ vars.DISTRIBUTION_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$DISTRIBUTION_URL" ] || [ -z "$CRON_SECRET" ]; then
+            echo "Distribution endpoint not configured; skipping."
+            exit 0
+          fi
+
+          curl --fail-with-body --silent --show-error             --request POST             --header "Authorization: Bearer $CRON_SECRET"             "$DISTRIBUTION_URL"
