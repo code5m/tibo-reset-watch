@@ -22,11 +22,12 @@ export async function POST(request: Request) {
   const phone = clean(form.get("phone"), 32);
   const name = clean(form.get("name"), 80);
   const wechatTarget = clean(form.get("wechatTarget"), 120);
+  const alipayTarget = clean(form.get("alipayTarget"), 120);
   const source = clean(form.get("source"), 80) || "website";
   const interests = form.getAll("interests").map(value => clean(value, 40)).filter(Boolean);
   const requestedChannels = form.getAll("channels").map(value => clean(value, 20));
 
-  if (!email && !phone && !wechatTarget) {
+  if (!email && !phone && !wechatTarget && !alipayTarget) {
     return NextResponse.redirect(new URL("/subscribe?error=contact", request.url), 303);
   }
   if (!validEmail(email) || !validPhone(phone)) {
@@ -37,6 +38,7 @@ export async function POST(request: Request) {
     if (channel === "email") return Boolean(email);
     if (channel === "sms") return Boolean(phone);
     if (channel === "wechat") return Boolean(wechatTarget);
+    if (channel === "alipay") return Boolean(alipayTarget);
     return false;
   });
 
@@ -44,6 +46,7 @@ export async function POST(request: Request) {
     if (email) channels.push("email");
     else if (phone) channels.push("sms");
     else if (wechatTarget) channels.push("wechat");
+    else if (alipayTarget) channels.push("alipay");
   }
 
   const client = db();
@@ -54,23 +57,24 @@ export async function POST(request: Request) {
   try {
     if (email) {
       await client.query(
-        `insert into subscribers(email, phone, wechat_target, name, status, channels, interests, source)
-         values($1,$2,$3,$4,'active',$5::jsonb,$6::jsonb,$7)
+        `insert into subscribers(email, phone, wechat_target, alipay_target, name, status, channels, interests, source)
+         values($1,$2,$3,$4,$5,'active',$6::jsonb,$7::jsonb,$8)
          on conflict (lower(email)) where email is not null
          do update set
            phone = coalesce(excluded.phone, subscribers.phone),
            wechat_target = coalesce(excluded.wechat_target, subscribers.wechat_target),
+           alipay_target = coalesce(excluded.alipay_target, subscribers.alipay_target),
            name = coalesce(excluded.name, subscribers.name),
            status = 'active',
            channels = excluded.channels,
            interests = excluded.interests,
            updated_at = now()`,
-        [email, phone || null, wechatTarget || null, name || null, JSON.stringify(channels), JSON.stringify(interests.length ? interests : ["reset"]), source]
+        [email, phone || null, wechatTarget || null, alipayTarget || null, name || null, JSON.stringify(channels), JSON.stringify(interests.length ? interests : ["reset"]), source]
       );
     } else if (phone) {
       await client.query(
-        `insert into subscribers(email, phone, wechat_target, name, status, channels, interests, source)
-         values(null,$1,$2,$3,'active',$4::jsonb,$5::jsonb,$6)
+        `insert into subscribers(email, phone, wechat_target, alipay_target, name, status, channels, interests, source)
+         values(null,$1,$2,$3,$4,'active',$5::jsonb,$6::jsonb,$7)
          on conflict (phone) where phone is not null
          do update set
            wechat_target = coalesce(excluded.wechat_target, subscribers.wechat_target),
@@ -79,13 +83,13 @@ export async function POST(request: Request) {
            channels = excluded.channels,
            interests = excluded.interests,
            updated_at = now()`,
-        [phone, wechatTarget || null, name || null, JSON.stringify(channels), JSON.stringify(interests.length ? interests : ["reset"]), source]
+        [phone, wechatTarget || null, alipayTarget || null, name || null, JSON.stringify(channels), JSON.stringify(interests.length ? interests : ["reset"]), source]
       );
     } else {
       await client.query(
-        `insert into subscribers(wechat_target, name, status, channels, interests, source)
-         values($1,$2,'active',$3::jsonb,$4::jsonb,$5)`,
-        [wechatTarget, name || null, JSON.stringify(channels), JSON.stringify(interests.length ? interests : ["reset"]), source]
+        `insert into subscribers(wechat_target, alipay_target, name, status, channels, interests, source)
+         values($1,$2,$3,'active',$4::jsonb,$5::jsonb,$6)`,
+        [wechatTarget || null, alipayTarget || null, name || null, JSON.stringify(channels), JSON.stringify(interests.length ? interests : ["reset"]), source]
       );
     }
 
