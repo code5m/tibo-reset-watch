@@ -1,6 +1,8 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { sendAlipay, sendEmail, sendSms, sendWechat } from "@/lib/distribution";
+import { createUnsubscribeToken } from "@/lib/unsubscribe";
+import { site } from "@/lib/site";
 
 type SubscriberRow = {
   id: string;
@@ -18,7 +20,11 @@ async function deliver(
   title: string,
   body: string
 ) {
-  if (channel === "email" && subscriber.email) return sendEmail(subscriber.email, title, body);
+  if (channel === "email" && subscriber.email) {
+    const token = createUnsubscribeToken(subscriber.id);
+    const footer = token ? "\n\n退订：" + site.url + "/unsubscribe/" + token : "";
+    return sendEmail(subscriber.email, title, body + footer);
+  }
   if (channel === "wechat" && subscriber.wechat_target) return sendWechat(subscriber.wechat_target, title, body);
   if (channel === "sms" && subscriber.phone) return sendSms(subscriber.phone, body);
   if (channel === "alipay" && subscriber.alipay_target) return sendAlipay(subscriber.alipay_target, title, body);
