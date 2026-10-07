@@ -51,6 +51,11 @@ export default async function SubscribePage({
                 <input id="wechatTarget" name="wechatTarget" placeholder="后续接公众号/企业微信/WxPusher 时使用" />
               </div>
 
+              <div className="field">
+                <label htmlFor="alipayTarget">支付宝通知标识（可选）</label>
+                <input id="alipayTarget" name="alipayTarget" placeholder="后续接支付宝消息能力时使用" />
+              </div>
+
               <fieldset className="choice-group">
                 <legend>我想接收</legend>
                 <label><input type="checkbox" name="interests" value="reset" defaultChecked /> Reset 高优先级提醒</label>
@@ -63,6 +68,7 @@ export default async function SubscribePage({
                 <label><input type="checkbox" name="channels" value="email" defaultChecked /> 邮件</label>
                 <label><input type="checkbox" name="channels" value="wechat" /> 微信</label>
                 <label><input type="checkbox" name="channels" value="sms" /> 短信</label>
+                <label><input type="checkbox" name="channels" value="alipay" /> 支付宝</label>
               </fieldset>
 
               {params.ok ? <div className="notice success">订阅成功。欢迎成为 ResetWatch 的首批用户。</div> : null}
