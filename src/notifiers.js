@@ -1,27 +1,77 @@
-async function postJson(url, payload) {
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(payload)
-  });
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+async function fetchWithRetry(url, options, {
+  attempts = 3,
+  baseDelayMs = 1200,
+  timeoutMs = 12_000
+} = {}) {
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      const response = await fetch(url, {
+        ...options,
+        signal: AbortSignal.timeout(timeoutMs)
+      });
+      return response;
+    } catch (error) {
+      lastError = error;
+      if (attempt < attempts) {
+        await sleep(baseDelayMs * attempt);
+      }
+    }
+  }
+
+  throw lastError || new Error("request failed");
+}
+
+async function parseJsonResponse(response, provider) {
+  const text = await response.text();
+  let payload = null;
+  try {
+    payload = text ? JSON.parse(text) : {};
+  } catch {
+    throw new Error(provider + " returned non-JSON response");
+  }
 
   if (!response.ok) {
-    throw new Error("HTTP " + response.status + ": " + await response.text());
+    throw new Error(provider + " HTTP " + response.status + ": " + JSON.stringify(payload).slice(0, 300));
   }
-  return response;
+  return payload;
+}
+
+export function validateServerChanResponse(payload) {
+  const code = Number(payload?.code);
+  if (code !== 0) {
+    throw new Error("ServerChan business error: " + JSON.stringify(payload).slice(0, 300));
+  }
+  return true;
+}
+
+export function validateWxPusherResponse(payload) {
+  const code = Number(payload?.code);
+  if (code !== 1000) {
+    throw new Error("WxPusher business error: " + JSON.stringify(payload).slice(0, 300));
+  }
+  return true;
 }
 
 export async function notifyServerChan(title, body) {
   const key = process.env.SERVERCHAN_SENDKEY;
   if (!key) return false;
 
-  const url = "https://sctapi.ftqq.com/" + encodeURIComponent(key) + ".send";
+  const host = key.startsWith("sctp")
+    ? "https://" + key.split("t")[1] + ".push.ft07.com"
+    : "https://sctapi.ftqq.com";
+  const url = host + "/" + encodeURIComponent(key) + ".send";
   const form = new URLSearchParams({ title, desp: body });
-  const response = await fetch(url, { method: "POST", body: form });
 
-  if (!response.ok) {
-    throw new Error("ServerChan HTTP " + response.status + ": " + await response.text());
-  }
+  const response = await fetchWithRetry(url, {
+    method: "POST",
+    body: form
+  });
+
+  validateServerChanResponse(await parseJsonResponse(response, "ServerChan"));
   return true;
 }
 
@@ -34,15 +84,20 @@ export async function notifyWxPusher(title, body, url) {
 
   if (!token || !uids.length) return false;
 
-  await postJson("https://wxpusher.zjiecode.com/api/send/message", {
-    appToken: token,
-    content: body,
-    summary: title,
-    contentType: 1,
-    uids,
-    url
+  const response = await fetchWithRetry("https://wxpusher.zjiecode.com/api/send/message", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      appToken: token,
+      content: body,
+      summary: title,
+      contentType: 1,
+      uids,
+      url
+    })
   });
 
+  validateWxPusherResponse(await parseJsonResponse(response, "WxPusher"));
   return true;
 }
 
@@ -50,7 +105,7 @@ export async function sendWeChat({ title, body, url }) {
   if ((process.env.DRY_RUN || "false").toLowerCase() === "true") {
     console.log("[DRY_RUN]", title);
     console.log(body);
-    return;
+    return { delivered: true, providers: ["dry-run"] };
   }
 
   const configured = Boolean(
@@ -67,11 +122,16 @@ export async function sendWeChat({ title, body, url }) {
     notifyWxPusher(title, body, url)
   ]);
 
-  const delivered = results.some(result => result.status === "fulfilled" && result.value === true);
-  if (!delivered) {
+  const providers = [];
+  if (results[0].status === "fulfilled" && results[0].value === true) providers.push("serverchan");
+  if (results[1].status === "fulfilled" && results[1].value === true) providers.push("wxpusher");
+
+  if (!providers.length) {
     const reasons = results
       .filter(result => result.status === "rejected")
       .map(result => result.reason?.message || String(result.reason));
     throw new Error("All configured WeChat notifiers failed: " + reasons.join("; "));
   }
+
+  return { delivered: true, providers };
 }
