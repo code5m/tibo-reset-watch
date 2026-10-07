@@ -116,6 +116,7 @@ export default function RootLayout({
               <Link href="/faq">FAQ</Link>
               <Link href="/status">系统状态</Link>
               <Link href="/privacy">隐私</Link>
+              <Link href="/terms">条款</Link>
               <a href={site.github} target="_blank" rel="noreferrer">GitHub</a>
             </div>
           </div>
