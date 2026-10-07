@@ -42,3 +42,14 @@ Actions → Tibo Reset Monitor → Run workflow
 
 不要把 SendKey、App Token、UID 写进 README、代码或 Issue。
 GitHub Secrets 创建后不会把明文展示给 Actions 日志。
+
+
+## 面向公开用户：WxPusher Topic
+
+当 ResetWatch 面向公众订阅时，不要手工维护所有 UID。可在 GitHub Actions Variable 配置：
+
+~~~text
+WXPUSHER_TOPIC_ID=你的 Topic ID
+~~~
+
+用户加入 Topic 后即可统一接收 Reset 通知，`WXPUSHER_APP_TOKEN` 仍只保存在 Secret 中。这个方案适合早期验证；商业化后建议根据主体资质接入微信公众号/小程序官方消息能力。

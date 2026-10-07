@@ -79,26 +79,32 @@ export async function notifyServerChan(title, body) {
   return true;
 }
 
-export async function notifyWxPusher(title, body, url) {
-  const token = process.env.WXPUSHER_APP_TOKEN;
-  const uids = (process.env.WXPUSHER_UIDS || "")
+export function wxPusherTargets(env = process.env) {
+  const uids = String(env.WXPUSHER_UIDS || "")
     .split(",")
     .map(value => value.trim())
     .filter(Boolean);
+  const topicIds = String(env.WXPUSHER_TOPIC_IDS || env.WXPUSHER_TOPIC_ID || "")
+    .split(",")
+    .map(value => Number(value.trim()))
+    .filter(value => Number.isInteger(value) && value > 0);
+  return { uids, topicIds };
+}
 
-  if (!token || !uids.length) return false;
+export async function notifyWxPusher(title, body, url) {
+  const token = process.env.WXPUSHER_APP_TOKEN;
+  const { uids, topicIds } = wxPusherTargets();
+
+  if (!token || (!uids.length && !topicIds.length)) return false;
+
+  const payload = { appToken: token, content: body, summary: title, contentType: 1, url };
+  if (uids.length) payload.uids = uids;
+  if (topicIds.length) payload.topicIds = topicIds;
 
   const response = await fetchWithRetry("https://wxpusher.zjiecode.com/api/send/message", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      appToken: token,
-      content: body,
-      summary: title,
-      contentType: 1,
-      uids,
-      url
-    })
+    body: JSON.stringify(payload)
   });
 
   validateWxPusherResponse(await parseJsonResponse(response, "WxPusher"));
@@ -112,13 +118,14 @@ export async function sendWeChat({ title, body, url }) {
     return { delivered: true, providers: ["dry-run"] };
   }
 
+  const targets = wxPusherTargets();
   const configured = Boolean(
     process.env.SERVERCHAN_SENDKEY ||
-    (process.env.WXPUSHER_APP_TOKEN && process.env.WXPUSHER_UIDS)
+    (process.env.WXPUSHER_APP_TOKEN && (targets.uids.length || targets.topicIds.length))
   );
 
   if (!configured) {
-    throw new Error("No WeChat notifier configured. Set SERVERCHAN_SENDKEY or WXPUSHER_APP_TOKEN + WXPUSHER_UIDS.");
+    throw new Error("No WeChat notifier configured. Set SERVERCHAN_SENDKEY or WXPUSHER_APP_TOKEN + WXPUSHER_UIDS/WXPUSHER_TOPIC_ID.");
   }
 
   const results = await Promise.allSettled([

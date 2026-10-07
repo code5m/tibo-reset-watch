@@ -38,6 +38,7 @@ jobs:
           SERVERCHAN_SENDKEY: ${{ secrets.SERVERCHAN_SENDKEY }}
           WXPUSHER_APP_TOKEN: ${{ secrets.WXPUSHER_APP_TOKEN }}
           WXPUSHER_UIDS: ${{ secrets.WXPUSHER_UIDS }}
+          WXPUSHER_TOPIC_ID: ${{ vars.WXPUSHER_TOPIC_ID }}
           X_BEARER_TOKEN: ${{ secrets.X_BEARER_TOKEN }}
           INGEST_SECRET: ${{ secrets.INGEST_SECRET }}
           INGEST_URL: ${{ vars.INGEST_URL }}

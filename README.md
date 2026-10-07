@@ -229,3 +229,8 @@ SOURCE_MODE=auto
 - 默认公共 Feed 也是轮询式来源，不是 X Webhook。
 - 微信服务商和网络本身也可能短暂延迟。
 - 如果你追求更强的实时性，应使用官方 X API + 常驻调度服务，而不是只依赖 GitHub cron。
+
+
+## Web 产品与增长闭环
+
+`apps/web` 已包含公开网站、订阅页、Reset 时间线、项目雷达和后台内容/活动工作台。监控器通过 `INGEST_URL` + `INGEST_SECRET` 将 signal / project / health 写入网站数据库。公开微信订阅可使用 `WXPUSHER_TOPIC_ID`。多平台获客策略见 [docs/DISTRIBUTION.md](docs/DISTRIBUTION.md)。
