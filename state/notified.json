@@ -1,9 +1,10 @@
 {
-  "version": 2,
+  "version": 3,
   "initialized": false,
   "initializedAt": null,
   "seen": {},
   "notified": {},
   "projectQueue": [],
-  "lastProjectDigestDate": null
+  "lastProjectDigestDate": null,
+  "scheduledReminders": {}
 }
