@@ -68,6 +68,7 @@ create table if not exists content_items (
   geo_summary text,
   published_at timestamptz,
   created_at timestamptz not null default now(),
+  dedupe_key text,
   updated_at timestamptz not null default now()
 );
 
@@ -79,12 +80,15 @@ create table if not exists campaigns (
   body text not null,
   audience text not null default 'all',
   channels jsonb not null default '["email"]'::jsonb,
-  status text not null default 'draft' check (status in ('draft','scheduled','sent')),
+  status text not null default 'draft' check (status in ('draft','scheduled','sending','sent')),
   scheduled_at timestamptz,
   sent_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+create unique index if not exists campaigns_dedupe_key_unique
+  on campaigns(dedupe_key) where dedupe_key is not null;
 
 create table if not exists deliveries (
   id uuid primary key default gen_random_uuid(),
