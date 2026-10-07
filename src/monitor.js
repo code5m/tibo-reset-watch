@@ -76,7 +76,8 @@ async function deliverReset(post, classification, state) {
   const delivery = await sendNotification({
     title: resetTitle(classification.kind),
     body: resetBody(post, classification),
-    url: post.url
+    url: post.url,
+    event: { id: post.id, versionKey: post.versionKey, type: "reset", resetKind: classification.kind, actionable: classification.actionable, text: post.text, publishedAt: post.createdAt, publishedAtChina: formatChinaTime(post.createdAt), permalink: post.url, source: post.source }
   });
 
   state.notified[key] = {
