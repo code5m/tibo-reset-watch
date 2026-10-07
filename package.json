@@ -1,15 +1,21 @@
 {
   "name": "tibo-reset-watch",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "private": true,
   "type": "module",
-  "description": "Reliable monitor for @thsottiaux reset signals and project leads, with China-time WeChat alerts.",
+  "workspaces": [
+    "apps/web"
+  ],
+  "description": "Reset intelligence monitor plus customer-facing website, subscription and distribution workbench.",
   "scripts": {
     "monitor": "node src/monitor.js",
     "test": "node --test",
-    "check": "node --check src/classify.js && node --check src/feed.js && node --check src/health.js && node --check src/monitor.js && node --check src/notifiers.js && node --check src/state.js && node --check src/time.js"
+    "check": "node --check src/classify.js && node --check src/feed.js && node --check src/health.js && node --check src/monitor.js && node --check src/notifiers.js && node --check src/state.js && node --check src/time.js",
+    "web:dev": "npm run dev --workspace @resetwatch/web",
+    "web:build": "npm run build --workspace @resetwatch/web",
+    "web:start": "npm run start --workspace @resetwatch/web"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=24"
   }
 }
