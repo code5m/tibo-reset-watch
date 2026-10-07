@@ -1,6 +1,7 @@
 import { classifyProjectLead, classifyReset } from "./classify.js";
 import { DEFAULT_FEED_URL, fetchPosts } from "./feed.js";
 import { loadHealth, recordFailure, recordSuccess, saveHealth } from "./health.js";
+import { ingestHealth, ingestProject, ingestSignal } from "./ingest.js";
 import { sendWeChat } from "./notifiers.js";
 import { loadState, pruneProjectQueue, pruneScheduledReminders, pruneSeen, saveState } from "./state.js";
 import { chinaDateKey, chinaHour, formatChinaTime, hoursUntil, inferResetTime } from "./time.js";
@@ -70,6 +71,9 @@ function resetBody(post, classification) {
 async function deliverReset(post, classification, state) {
   const key = "reset:" + post.versionKey;
   if (state.notified[key]) return false;
+
+  const inferred = inferResetTime(post.text, post.createdAt);
+  await ingestSignal(post, classification, inferred);
 
   const delivery = await sendWeChat({
     title: resetTitle(classification.kind),
@@ -237,7 +241,10 @@ async function monitor(posts, state) {
       if (await deliverReset(post, reset, state)) sent++;
     } else if (DISCOVER_PROJECTS) {
       const lead = classifyProjectLead(post.text);
-      if (lead.actionable && enqueueProject(post, lead, state)) queued++;
+      if (lead.actionable) {
+        await ingestProject(post, lead);
+        if (enqueueProject(post, lead, state)) queued++;
+      }
     }
 
     state.seen[post.versionKey] = new Date().toISOString();
@@ -308,6 +315,7 @@ async function main() {
     if (healthResult.shouldPersist) {
       saveHealth(HEALTH_PATH, healthResult.health);
     }
+    await ingestHealth(healthResult.health);
 
     console.log("Source:", result.meta.source, "source age(min):", result.meta.sourceAgeMinutes);
   } catch (error) {
@@ -320,6 +328,7 @@ async function main() {
     }
 
     saveHealth(HEALTH_PATH, health);
+    await ingestHealth(health);
     console.error(error?.stack || error);
     process.exitCode = 1;
   }
