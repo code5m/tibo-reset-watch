@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { sendAlipay, sendEmail, sendSms, sendWechat } from "@/lib/distribution";
 import { createUnsubscribeToken } from "@/lib/unsubscribe";
 import { site } from "@/lib/site";
+import { refundSmsCredit, reserveSmsCredit } from "@/lib/referrals";
 
 type SubscriberRow = {
   id: string;
@@ -12,6 +13,7 @@ type SubscriberRow = {
   alipay_target: string | null;
   channels: string[];
   interests: string[];
+  sms_credits: number;
 };
 
 async function deliver(
@@ -55,7 +57,7 @@ export async function sendCampaign(campaignId: string) {
   }
 
   const subscriberResult = await client.query(
-    `select id, email, phone, wechat_target, alipay_target, channels, interests
+    `select id, email, phone, wechat_target, alipay_target, channels, interests, sms_credits
        from subscribers
       where status='active'
       order by created_at asc
@@ -79,7 +81,33 @@ export async function sendCampaign(campaignId: string) {
         const optedIn = Array.isArray(subscriber.channels) && subscriber.channels.includes(channel);
         if (!optedIn) return;
 
+        if (channel === "sms" && campaign.audience !== "reset") {
+          await client.query(
+            `insert into deliveries(campaign_id, subscriber_id, channel, provider, status, error)
+             values($1,$2,'sms','reward-credit','skipped','sms-reward-is-reset-only')`,
+            [campaign.id, subscriber.id]
+          );
+          return;
+        }
+
+        let reservedSmsCredit = false;
+        if (channel === "sms") {
+          const credit = await reserveSmsCredit(subscriber.id);
+          if (!credit.ok) {
+            await client.query(
+              `insert into deliveries(campaign_id, subscriber_id, channel, provider, status, error)
+               values($1,$2,'sms','reward-credit','skipped','sms-credit-required')`,
+              [campaign.id, subscriber.id]
+            );
+            return;
+          }
+          reservedSmsCredit = true;
+        }
+
         const result = await deliver(channel, subscriber, campaign.title, campaign.body);
+        if (channel === "sms" && reservedSmsCredit && !result.ok) {
+          await refundSmsCredit(subscriber.id);
+        }
 
         await client.query(
           `insert into deliveries(campaign_id, subscriber_id, channel, provider, status, provider_message_id, error, sent_at)

@@ -233,3 +233,16 @@ npm run web:dev
 ResetWatch 是独立第三方产品，不属于 OpenAI，也不代表 Tibo。
 
 公开 Reset 信息应尽量保留原始来源；不确定的时间不得伪造成精确事实。
+
+
+## Referral / SMS Reward
+
+已加入合规优先的邀请增长模块：
+
+- 每个订阅用户生成唯一邀请码。
+- 好友通过邀请链接进入后记录归因。
+- **分享动作本身不发奖励**；好友完成有效订阅/验证后才 qualified。
+- 默认每个有效邀请奖励 3 次 Reset 短信提醒，每月最多 30 次。
+- 短信奖励只用于 Reset 通知，不用于营销短信。
+- 后台可审核 pending 邀请，未来短信 OTP / 邮箱验证 / 微信回调可自动调用内部 qualification API。
+- 规则与部署说明见 [docs/REFERRALS.md](docs/REFERRALS.md)。

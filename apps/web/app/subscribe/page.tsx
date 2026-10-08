@@ -6,7 +6,7 @@ export const metadata = {
 export default async function SubscribePage({
   searchParams
 }: {
-  searchParams: Promise<{ ok?: string; error?: string }>;
+  searchParams: Promise<{ ok?: string; error?: string; ref?: string }>;
 }) {
   const params = await searchParams;
 
@@ -25,8 +25,14 @@ export default async function SubscribePage({
       <section className="content-shell">
         <div className="shell grid-2">
           <div className="card">
+            {params.ref ? (
+              <div className="notice success" style={{ marginBottom: 14 }}>
+                你通过好友邀请进入。完成有效订阅后，邀请人可获得 Reset 短信提醒额度；你的权益不会减少。
+              </div>
+            ) : null}
             <form className="form" action="/api/subscribe" method="post">
-              <input type="hidden" name="source" value="subscribe-page" />
+              <input type="hidden" name="source" value={params.ref ? "referral" : "subscribe-page"} />
+              <input type="hidden" name="referralCode" value={params.ref || ""} />
               <div className="trap" aria-hidden="true">
                 <label>Website<input name="website" tabIndex={-1} autoComplete="off" /></label>
               </div>
@@ -78,7 +84,7 @@ export default async function SubscribePage({
               {params.error === "server" ? <div className="notice error">保存失败，请稍后重试。</div> : null}
 
               <button className="button" type="submit">加入早期用户</button>
-              <p className="microcopy">提交即代表你同意接收所选内容；后续可随时退订。我们不会出售你的联系方式。</p>
+              <p className="microcopy">提交即代表你同意接收所选内容；后续可随时退订。我们不会出售你的联系方式。邀请奖励只在好友成为有效订阅用户后发放，分享动作本身不产生奖励。</p>
             </form>
           </div>
 

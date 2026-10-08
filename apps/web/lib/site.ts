@@ -12,5 +12,6 @@ export const nav = [
   { href: "/reset", label: "Reset 时间线" },
   { href: "/projects", label: "项目雷达" },
   { href: "/guides", label: "使用指南" },
-  { href: "/pricing", label: "订阅方案" }
+  { href: "/pricing", label: "订阅方案" },
+  { href: "/invite", label: "邀请奖励" }
 ] as const;
