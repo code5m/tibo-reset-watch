@@ -24,6 +24,7 @@ export async function POST(request: Request) {
   const wechatTarget = clean(form.get("wechatTarget"), 120);
   const alipayTarget = clean(form.get("alipayTarget"), 120);
   const source = clean(form.get("source"), 80) || "website";
+  const referralCode = clean(form.get("referralCode"), 32);
   const interests = form.getAll("interests").map(value => clean(value, 40)).filter(Boolean);
   const requestedChannels = form.getAll("channels").map(value => clean(value, 20));
 
@@ -55,8 +56,9 @@ export async function POST(request: Request) {
   }
 
   try {
+    let subscriber: { id: string; referral_code: string } | undefined;
     if (email) {
-      await client.query(
+      const saved = await client.query(
         `insert into subscribers(email, phone, wechat_target, alipay_target, name, status, channels, interests, source)
          values($1,$2,$3,$4,$5,'active',$6::jsonb,$7::jsonb,$8)
          on conflict (lower(email)) where email is not null
@@ -68,11 +70,13 @@ export async function POST(request: Request) {
            status = 'active',
            channels = excluded.channels,
            interests = excluded.interests,
-           updated_at = now()`,
+           updated_at = now()
+         returning id, referral_code`,
         [email, phone || null, wechatTarget || null, alipayTarget || null, name || null, JSON.stringify(channels), JSON.stringify(interests.length ? interests : ["reset"]), source]
       );
+      subscriber = saved.rows[0];
     } else if (phone) {
-      await client.query(
+      const saved = await client.query(
         `insert into subscribers(email, phone, wechat_target, alipay_target, name, status, channels, interests, source)
          values(null,$1,$2,$3,$4,'active',$5::jsonb,$6::jsonb,$7)
          on conflict (phone) where phone is not null
@@ -83,18 +87,46 @@ export async function POST(request: Request) {
            status = 'active',
            channels = excluded.channels,
            interests = excluded.interests,
-           updated_at = now()`,
+           updated_at = now()
+         returning id, referral_code`,
         [phone, wechatTarget || null, alipayTarget || null, name || null, JSON.stringify(channels), JSON.stringify(interests.length ? interests : ["reset"]), source]
       );
+      subscriber = saved.rows[0];
     } else {
-      await client.query(
+      const saved = await client.query(
         `insert into subscribers(wechat_target, alipay_target, name, status, channels, interests, source)
-         values($1,$2,$3,'active',$4::jsonb,$5::jsonb,$6)`,
+         values($1,$2,$3,'active',$4::jsonb,$5::jsonb,$6)
+         returning id, referral_code`,
         [wechatTarget || null, alipayTarget || null, name || null, JSON.stringify(channels), JSON.stringify(interests.length ? interests : ["reset"]), source]
       );
+      subscriber = saved.rows[0];
     }
 
-    return NextResponse.redirect(new URL("/subscribe?ok=1", request.url), 303);
+    if (subscriber && referralCode) {
+      const inviter = await client.query(
+        `select id, referral_code
+           from subscribers
+          where lower(referral_code)=lower($1)
+            and status='active'
+          limit 1`,
+        [referralCode]
+      );
+      const inviterRow = inviter.rows[0];
+      if (inviterRow && inviterRow.id !== subscriber.id) {
+        await client.query(
+          `insert into referrals(inviter_id, invitee_id, referral_code, source)
+           values($1,$2,$3,$4)
+           on conflict(invitee_id) do nothing`,
+          [inviterRow.id, subscriber.id, inviterRow.referral_code, "referral:" + source]
+        );
+      }
+    }
+
+    const code = subscriber?.referral_code || "";
+    return NextResponse.redirect(
+      new URL("/invite?joined=1" + (code ? "&code=" + encodeURIComponent(code) : ""), request.url),
+      303
+    );
   } catch (error) {
     console.error("subscribe failed", error);
     return NextResponse.redirect(new URL("/subscribe?error=server", request.url), 303);

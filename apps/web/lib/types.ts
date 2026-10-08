@@ -11,6 +11,8 @@ export type Subscriber = {
   channels: SubscriberChannel[];
   interests: string[];
   source: string;
+  referralCode: string;
+  smsCredits: number;
   createdAt: string;
 };
 

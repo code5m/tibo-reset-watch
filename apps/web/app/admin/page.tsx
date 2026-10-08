@@ -8,7 +8,9 @@ export default async function AdminDashboard() {
     ["Reset 信号", metrics.signals],
     ["项目线索", metrics.projects],
     ["分发活动", metrics.campaigns],
-    ["成功发送", metrics.deliveries]
+    ["成功发送", metrics.deliveries],
+    ["有效邀请", metrics.referrals],
+    ["短信奖励余额", metrics.smsCredits]
   ];
 
   return (
