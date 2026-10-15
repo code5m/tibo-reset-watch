@@ -1,9 +1,9 @@
 {
   "version": 1,
   "lastSuccessAt": null,
-  "lastFailureAt": "2026-10-15T08:40:38.054Z",
+  "lastFailureAt": "2026-10-15T13:42:52.940Z",
   "lastDailyHeartbeatDate": null,
-  "consecutiveFailures": 36,
+  "consecutiveFailures": 37,
   "failureAlertedForStreak": false,
   "lastError": "public-feed: Public Feed is stale; last success: 2026-08-23T15:45:04.635Z",
   "lastSource": null,
