@@ -2,25 +2,31 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="color-scheme" content="light"><title>ResetWatch · 多端工作台</title>
-<link rel="stylesheet" href="./style.css">
+<meta name="color-scheme" content="light dark"><meta name="theme-color" content="#14624d"><link rel="manifest" href="./manifest.webmanifest"><title>ResetWatch · 多端工作台</title>
+<link rel="stylesheet" href="./style.css"><link rel="stylesheet" href="./product.css">
 </head>
 <body>
 <div class="shell">
 <aside>
   <div class="brand"><span class="brand-icon">R</span><div>ResetWatch<small>TIBO RESET INTELLIGENCE</small></div></div>
   <nav aria-label="工作台导航">
-    <button data-tab="feed" class="active">◷　实时事件</button>
-    <button data-tab="history">▤　历史对比</button>
-    <button data-tab="studio">✎　内容工作室</button>
-    <button data-tab="review">✓　原帖校对</button>
-    <button data-tab="platforms">▦　客户端与通知</button>
-  </nav>
+<button data-tab="feed" class="active">◷　实时事件</button>
+<button data-tab="history">▤　证据与历史</button>
+<button data-tab="delivery">◎　告警与送达</button>
+<button data-tab="studio">✎　内容工作室</button>
+<button data-tab="platforms">⚙　产品设置</button>
+</nav>
+<p class="nav-section">把下一次重置，变成下一次交付</p>
+<nav aria-label="工作安排导航">
+<button data-tab="tasks">✓　使用安排</button>
+<button data-tab="teams">▦　团队空间</button>
+<button data-tab="widgets">▣　小组件</button>
+</nav>
   <div class="aside-note">一套来源 · 多端同步<br>独立第三方产品<br>非 OpenAI / X 官方服务</div>
   <a class="admin-link" href="/admin">原有运营后台 ↗</a>
 </aside>
 <main>
-<header><div><span class="eyebrow">RESETWATCH / WORKBENCH</span><h1 id="page-title">先看到公告，再安排工作。</h1><p>先告警，后文案。时间有依据，未知不猜测。</p></div><div class="header-controls"><span id="mode-tag" class="tag">真实数据</span><button id="refresh">刷新数据</button><button id="demo">查看演示</button></div></header>
+<header><div><span class="eyebrow">RESETWATCH / WORKBENCH</span><h1 id="page-title">先看到公告，再安排工作。</h1><p>先告警，后文案。时间有依据，未知不猜测。</p></div><div class="header-controls"><span id="mode-tag" class="tag">真实数据</span><button id="theme-toggle">明暗主题</button><button id="refresh">刷新数据</button><button id="demo">查看演示</button></div></header>
 <div id="message" class="message" role="status">正在读取服务端事件…</div>
 <div class="stat-grid">
   <div class="stat"><span>本页事件</span><strong id="event-count">—</strong><small id="data-note">尚未读取</small></div>
@@ -28,6 +34,7 @@
   <div class="stat"><span>当前北京时间</span><strong class="numeric" id="top-clock">—</strong><small>UTC+8 · 每秒更新</small></div>
 </div>
 <section id="tab-feed" class="tab">
+<div class="search-row"><label>搜索已加载事件<input id="event-search" type="search" placeholder="标题、英文原帖或中文译文"></label><label>事件类型<select id="event-filter"><option value="">全部类型</option><option value="global">Global Reset</option><option value="banked">Banked Reset</option><option value="quota_correction">定向补偿</option></select></label><button id="bookmark" data-write>收藏当前事件</button></div><p id="no-match" class="empty" hidden>已加载的事件中没有匹配项。清除筛选或加载更多事件。</p>
  <div class="section-heading"><h2>官方原帖依据</h2><label>选择事件 <select id="event-select" aria-label="选择事件"></select></label></div>
  <div id="empty" class="empty" hidden><h2>目前没有可展示的事件</h2><p>没有配置数据源或原帖尚未校对。不会拿演示数据冒充最新公告。</p><button id="empty-demo">打开明确标注的演示</button></div>
  <div id="event-view" hidden>
@@ -52,8 +59,8 @@
  </div>
  <button id="more" hidden>加载更多事件</button>
 </section>
-<section id="tab-history" class="tab" hidden><h2>历史对比</h2><p class="muted">统计的是官方确认发帖时间，不是个人到账时间。Global、Banked、补偿分别标注。</p><div id="history" class="table-scroll"></div></section>
-<section id="tab-studio" class="tab" hidden><h2>先发告警，再整理传播稿</h2><p class="muted">根据当前选中事件生成。这里不会自动发布或宣称消息已经送达。</p><div class="studio-grid"><div class="panel"><h3>① 用户告警 · 时间快照</h3><textarea id="alert-draft" readonly></textarea><button data-copy="alert-draft">复制告警</button></div><div class="panel"><h3>② 独立传播草稿 · 未发布</h3><textarea id="social-draft" readonly></textarea><button data-copy="social-draft">复制传播稿</button></div></div></section>
+<section id="tab-history" class="tab" hidden><h2>证据与历史</h2><div class="form-row"><label>筛选同类事件<select id="history-filter"><option value="">全部，分类型标注</option><option value="global">Global Reset</option><option value="banked">Banked Reset</option><option value="quota_correction">定向补偿</option></select></label><button data-open="review">原帖校对与事件归组 ↗</button></div><p class="muted">统计的是官方确认发帖时间，不是个人到账时间。Global、Banked、补偿分别标注。</p><div id="history" class="table-scroll"></div></section>
+<section id="tab-studio" class="tab" hidden><h2>先发告警，再整理传播稿</h2><p class="muted">根据当前选中事件生成。这里不会自动发布或宣称消息已经送达。</p><div class="studio-grid"><div class="panel"><h3>① 用户告警 · 时间快照</h3><textarea id="alert-draft" readonly></textarea><button data-copy="alert-draft">复制告警</button><button id="save-alert" data-operator>保存告警草稿</button></div><div class="panel"><h3>② 独立传播草稿 · 未发布</h3><textarea id="social-draft" readonly></textarea><button data-copy="social-draft">复制传播稿</button><button id="save-social" data-operator>保存传播草稿</button></div></div><section class="panel"><h3>服务端草稿与发布记录</h3><p>仅限已登录运营人员。记录外部发布不等于代你发布。</p><a href="/admin/login">运营人员登录 ↗</a><button id="drafts-refresh">读取草稿</button><div id="saved-drafts" class="list-space">尚未读取。</div></section></section>
 <section id="tab-review" class="tab" hidden><h2>原帖校对与事件归组</h2><p>将同一轮的宣布、时间承诺和完成归到同一事件；未经核实的记录不能标成官方确认。</p><div class="panel"><a href="/admin/login">管理员登录 ↗</a> <button id="load-catalog">读取校对目录与待审原帖</button><p id="review-status" role="status">此处复用现有后台登录，不在客户端保存管理密钥。</p><div class="review-form">
 <label>选择待审原帖<select id="signal-picker"><option>请先读取目录</option></select></label>
 <div class="review-two"><label>事件 ID（同一轮使用相同 ID）<input id="edit-event-id" placeholder="global-来源帖子ID"></label><label>事件名称<input id="edit-title" placeholder="本轮 Reset"></label></div>
@@ -66,13 +73,49 @@
 <button id="add-post">加入/更新校对草稿</button>
 </div>
 <details><summary>待审原始数据（最多 100 条）</summary><pre id="pending"></pre></details><label>事件目录（高级编辑；字段说明见多端文档）<textarea id="catalog-editor" spellcheck="false" placeholder='{"schemaVersion":1,"events":[]}'></textarea></label><button id="save-catalog">校验并保存目录</button><small>带版本校验，遇到并发更新会拒绝覆盖；这里只保存目录，不触发群发。</small></div></section>
-<section id="tab-platforms" class="tab" hidden><h2>一个产品，五个入口。</h2><p class="muted">应用源码、编译成功、真机可用、上架成功是不同状态，不混报。</p><div class="platform-grid">
+<section id="tab-platforms" class="tab" hidden>
+<section class="panel" id="profile-panel">
+<div class="section-heading"><div><span class="eyebrow">YOUR WORKSPACE</span><h2 id="profile-name">访客 · 尚未连接设备档案</h2></div><button id="profile-refresh">重新读取档案</button></div>
+<p id="profile-state"></p><p id="enrollment-warning" class="warning" hidden>当前为演示模式，禁止保存档案、任务、通知或草稿。点击刷新数据退出演示。</p>
+<div class="review-two"><div><h3>创建本产品独立档案</h3><label>档案名称<input id="profile-input" maxlength="80" placeholder="例如：我的工作设备" autocomplete="off"></label><label class="check"><input type="checkbox" id="profile-consent">我同意仅为 ResetWatch 保存偏好与任务，不关联 OpenAI 凭据。</label><button id="profile-create" data-enroll>创建档案</button></div>
+<div><h3>连接已有档案</h3><label>恢复码<input id="recovery-input" type="password" placeholder="rw_…" autocomplete="off"></label><p class="muted">恢复码等同本产品访问权限，请勿发到群聊或公开仓库。网页使用 HttpOnly 会话，不存入 localStorage。</p><button id="profile-connect" data-enroll>连接档案</button></div></div>
+<div class="form-row"><button id="profile-logout" data-write>断开本浏览器</button><button id="profile-export" data-write>导出我的数据</button><button id="profile-delete" data-write class="danger">删除本产品档案</button></div>
+</section>
+<section class="panel"><h3>主题、来源与隐私</h3><label>显示主题<select id="theme-choice"><option value="system">跟随系统</option><option value="light">浅色</option><option value="dark">深色</option></select></label><p id="source-state">正在核对来源能力。</p><p>当前只接入可核验的 Tibo 来源。其他供应商没有可信接入前，不展示虚假的在线状态。</p><p>不读取个人 OpenAI 额度、密码、Cookie 或会话令牌。个人到账时间始终单独标为未知。</p><button id="install-app">添加到主屏幕 / 安装 Web 应用</button></section>
+<h2>一个产品，五个入口。</h2><p class="muted">应用源码、编译成功、真机可用、上架成功是不同状态，不混报。</p><div class="platform-grid">
  <div class="panel"><span>WEB</span><h3>浏览器工作台</h3><p>事件、翻页卡片、时区、历史与文案；连接现有后台 API。</p><strong>本页面可运行</strong></div>
  <div class="panel"><span>WECHAT</span><h3>微信小程序</h3><p>共用客户端源码。需微信 AppID、合法服务域名和开发者工具验收。</p><strong>源码就绪 · 未真机验收</strong></div>
  <div class="panel"><span>iOS</span><h3>苹果客户端</h3><p>共用客户端源码。需签名、设备测试和 App Store 审核。</p><strong>源码就绪 · 未签名打包</strong></div>
  <div class="panel"><span>ANDROID</span><h3>安卓客户端</h3><p>共用客户端源码。需 Android 构建和真机通知测试。</p><strong>源码就绪 · 未生成 APK</strong></div>
  <div class="panel"><span>HARMONYOS</span><h3>鸿蒙客户端</h3><p>app-harmony 独立目标，需 HBuilderX、DevEco 和签名；不是 APK。</p><strong>源码就绪 · 未生成鸿蒙包</strong></div>
- </div><div class="panel"><h3>通知与送达</h3><p>当前客户端不提供“已开启系统推送”的假开关。原有订阅入口可用；微信订阅消息、APNs、安卓和鸿蒙推送尚须平台认证、服务端发送与真机回执验收。</p><a href="/subscribe">打开现有订阅页面 ↗</a>　<a href="/admin/campaigns">查看分发活动 ↗</a></div></section>
+ </div><div class="panel"><h3>通知与送达</h3><p id="capability-state">正在读取服务端真实配置。</p><p>当前客户端不提供“已开启系统推送”的假开关。原有订阅入口可用；微信订阅消息、APNs、安卓和鸿蒙推送尚须平台认证、服务端发送与真机回执验收。</p><a href="/subscribe">打开现有订阅页面 ↗</a>　<a href="/admin/campaigns">查看分发活动 ↗</a></div></section>
+
+<section id="tab-delivery" class="tab" hidden>
+<h2>告警与送达</h2><p class="muted">保存偏好、服务商接受和设备收到是三个不同阶段；不会因开关开启就宣称送达。</p>
+<div class="panel"><h3>提醒偏好</h3>
+<label class="check"><input id="pref-enabled" type="checkbox">启用本档案的提醒计划</label>
+<fieldset><legend>关注来源</legend><label class="check"><input id="pref-tibo" type="checkbox">Tibo · Codex / ChatGPT Work</label></fieldset>
+<fieldset><legend>事件类型</legend><label class="check"><input data-kind="global" type="checkbox">Global Reset</label><label class="check"><input data-kind="banked" type="checkbox">Banked Reset</label><label class="check"><input data-kind="quota_correction" type="checkbox">定向额度补偿</label></fieldset>
+<fieldset><legend>同轮临近提醒（不是新的 Reset）</legend><label class="check"><input type="checkbox" data-window="6">6 小时</label><label class="check"><input type="checkbox" data-window="3">3 小时</label><label class="check"><input type="checkbox" data-window="1">1 小时</label></fieldset>
+<label class="check"><input id="pref-quiet" type="checkbox">启用免打扰（北京时间，期间不发送，可能错过提前窗口）</label>
+<div class="form-row"><label>开始<input id="quiet-start" type="time" value="23:00"></label><label>结束<input id="quiet-end" type="time" value="07:00"></label><button id="pref-save" data-write>保存偏好到服务端</button></div>
+<p>未连接档案时，先到产品设置创建或连接。新公告由服务端尽早处理，不等到 6/3/1 小时；各客户端不重复群发。</p>
+<button data-open="platforms">打开档案设置</button></div>
+<div class="panel"><div class="section-heading"><h3>我的消息轨迹</h3><button id="delivery-refresh">刷新记录</button></div><div id="delivery-list">尚未读取。</div></div>
+<div class="panel"><h3>推送设备与授权</h3><ul id="device-list">尚未读取。</ul><p>新增系统推送设备需在微信 / iOS / Android / HarmonyOS 客户端主动授权；浏览本页面不会申请权限。</p><a href="/subscribe">原有微信 / 邮件 / 短信订阅入口 ↗</a></div>
+</section>
+<section id="tab-tasks" class="tab" hidden><h2>使用安排</h2><p>把额度用于已经需要完成的代码实现、审查、测试或调研。此处记录任务，不会自动执行代码。</p>
+<div class="panel"><div class="form-row"><label class="grow">我的重要任务<input id="task-title" maxlength="200" placeholder="例如：审查支付链路的异常分支"></label><label>优先级<select id="task-priority"><option value="high">优先</option><option value="normal">普通</option></select></label><button id="task-add" data-write>添加任务</button></div><label class="check"><input type="checkbox" id="task-link">关联当前查看的事件</label><ul id="task-list" class="task-list"></ul></div>
+<div class="panel"><h3>收藏的事件</h3><ul id="bookmark-list"></ul></div></section>
+<section id="tab-teams" class="tab" hidden><h2>团队空间</h2><p>共享的是自愿保存的工作安排，不共享 OpenAI 账号或额度。查看者、编辑者、所有者由后端分别校验。</p>
+<div class="panel"><div class="review-two"><div><label>新团队名称<input id="team-name" maxlength="100" placeholder="例如：研发团队"></label><button id="team-create" data-write>创建团队空间</button></div><div><label>单次邀请<input id="team-invite" type="password" autocomplete="off" placeholder="输入私下收到的邀请"></label><button id="team-join" data-write>加入空间</button></div></div></div>
+<div class="panel"><div class="form-row"><label class="grow">选择空间<select id="team-select"></select></label><button id="team-refresh">刷新团队</button></div><div id="team-list"></div></div></section>
+<section id="tab-widgets" class="tab" hidden><h2>小组件</h2><p>同一个公开只读摘要，不采集个人账号。原生系统有自己的刷新限制，组件不承诺实时推送。</p>
+<div class="panel widget"><span class="eyebrow">RESETWATCH / WIDGET</span><h3 id="widget-title">尚未读取事件</h3><span id="widget-state" class="tag">状态未知</span><p id="widget-window">最晚时间未知</p><small id="widget-note">与真实事件 API 相连，失败时不注入示例。</small><div class="form-row"><button id="widget-refresh">刷新公开摘要</button><a href="./widget.html" target="_blank" rel="noopener noreferrer">打开独立小组件 ↗</a></div></div>
+<div class="panel"><h3>原生集成边界</h3><p>iOS WidgetKit、Android AppWidget 与 HarmonyOS 卡片各自需要宿主应用、平台构建与设备验证。源码和配置不能等同于已上架。</p></div></section>
+<div id="product-status" class="message product-status" role="status" aria-live="polite">访客模式：无需 OpenAI 登录即可查看公开事件。</div>
+<dialog id="secret-dialog"><h2 id="secret-title"></h2><p>此内容是访问凭据，不包含在数据导出中。请先妥善保存，再关闭。</p><input id="secret-value" readonly type="password" aria-label="一次性显示的恢复码或邀请"><div class="form-row"><button id="copy-secret">复制并妥善保存</button><button id="close-secret">已保存，关闭</button></div></dialog>
+
 <div class="bottom-note" id="freshness">数据尚未加载。</div>
 </main></div>
 <script type="module" src="./app.js"></script>
