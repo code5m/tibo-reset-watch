@@ -1,0 +1,25 @@
+name: Source Bundle
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Archive tracked source only
+        run: |
+          mkdir -p source-artifacts
+          git archive --format=zip --output=source-artifacts/resetwatch-source.zip HEAD
+          git rev-parse HEAD > source-artifacts/COMMIT.txt
+          sha256sum source-artifacts/resetwatch-source.zip > source-artifacts/SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: resetwatch-source-${{ github.sha }}
+          path: source-artifacts/
+          retention-days: 7
+          if-no-files-found: error
