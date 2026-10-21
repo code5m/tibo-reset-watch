@@ -1,0 +1,7 @@
+{
+  "name": "@resetwatch/reset-core",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "exports": { ".": { "types": "./index.d.ts", "import": "./index.js" } }
+}
