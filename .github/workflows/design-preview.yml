@@ -1,0 +1,39 @@
+name: Product Design Preview
+on:
+  pull_request:
+    paths:
+      - 'docs/product-design/v1/**'
+      - '.github/workflows/design-preview.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'docs/product-design/v1/**'
+      - '.github/workflows/design-preview.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  browser-design:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install browser test tools
+        run: |
+          python -m pip install playwright==1.57.0
+          python -m playwright install --with-deps chromium
+      - name: Check design interactions and capture screens
+        run: python docs/product-design/v1/test-preview.py
+      - name: Upload exact design source, screenshots and result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: resetwatch-product-design
+          path: |
+            design-artifacts/
+            docs/product-design/v1/
+          if-no-files-found: warn
+          retention-days: 30
