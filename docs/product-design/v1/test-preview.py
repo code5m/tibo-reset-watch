@@ -10,9 +10,17 @@ OUT.mkdir(parents=True, exist_ok=True)
 checks = []
 errors = []
 network = []
+SCOPE = 'Browser prototype only; no real X data, DB, SDK, accounts or notifications'
+
+def report():
+    data = {'scope': SCOPE, 'checks': checks, 'total': len(checks),
+            'passed': sum(c['pass'] for c in checks), 'errors': errors, 'externalRequests': network}
+    (OUT / 'report.json').write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding='utf-8')
+    return data
 
 def record(name, condition):
     checks.append({'name': name, 'pass': bool(condition)})
+    report()
     assert condition, name
 
 def url(query=''):
@@ -50,8 +58,13 @@ with sync_playwright() as pw:
     page.screenshot(path=str(OUT / 'workbench-dark.png'), full_page=True)
     page.locator('#theme').click()
     page.select_option('#scenario', 'done')
+    confirmed_value = page.locator('[data-rem]').first.inner_text()
+    confirmed_label = page.locator('[data-rem-label]').first.inner_text()
+    record('completed metric has confirmation label', '\u5b98\u65b9\u786e\u8ba4' in confirmed_label and '\u63d0\u524d' in confirmed_label)
+    record('completed metric has exact fixture duration', confirmed_value == '3\u65f620\u52060\u79d2')
     page.locator('[data-prev]').click()
-    record('completion persists on old post', '\u63d0\u524d' in page.locator('[data-rem]').first.inner_text())
+    record('completion persists on old post', page.locator('[data-rem-label]').first.inner_text() == confirmed_label and page.locator('[data-rem]').first.inner_text() == confirmed_value)
+    record('completion is not relabeled as countdown on old post', '\u8fd8\u6709' not in page.locator('[data-rem]').first.inner_text())
     for scenario in ['planned','rolling','done','overdue','unknown','banked','correction','offline','empty']:
         page.select_option('#scenario', scenario)
         record('scene renders '+scenario, page.locator('#root').inner_text().strip() != '')
@@ -108,6 +121,5 @@ with sync_playwright() as pw:
     context.close()
     browser.close()
 
-report={'scope':'Browser prototype only; no real X data, DB, SDK, accounts or notifications','checks':checks,'total':len(checks),'errors':errors,'externalRequests':network}
-(OUT/'report.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
-print(json.dumps({'passed':len(checks),'screenshots':len(list(OUT.glob('*.png'))),'scope':report['scope']},ensure_ascii=False))
+report()
+print(json.dumps({'passed':sum(c['pass'] for c in checks),'total':len(checks),'screenshots':len(list(OUT.glob('*.png'))),'scope':SCOPE},ensure_ascii=False))
