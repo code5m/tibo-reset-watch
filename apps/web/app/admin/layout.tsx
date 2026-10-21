@@ -3,6 +3,7 @@ import { requireAdmin } from "@/lib/admin-auth";
 
 const adminNav = [
   ["/admin", "总览"],
+  ["/workbench", "Reset 工作台"],
   ["/admin/subscribers", "订阅用户"],
   ["/admin/referrals", "邀请奖励"],
   ["/admin/content", "内容"],
