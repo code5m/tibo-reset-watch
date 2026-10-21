@@ -165,6 +165,7 @@ export function actionText(e, now=Date.now()) {
   if(s.code==="completed") return "官方已确认该阶段完成；请核对账户实际额度，不再追赶旧额度窗口。";
   if(e.type==="banked") return "这是 Banked Reset，不等于自动清空旧额度；发放、使用方式和有效期以官方原帖为准。";
   if(e.type==="quota_correction") return "这是针对性补偿，不是全员 Reset；是否适用及个人到账仍需核实。";
+  if(s.code==="propagating") return "官方表示传播中；旧额度可能已经变化，请核验当前可见用量，不把参考截止当作保留保证。";
   if(s.code==="overdue") return "已过参考最晚截止，完成情况仍未知；不要把倒计时归零当作到账。";
   return "不要等到参考最晚截止。优先完成已有的重要代码审查、功能实现、测试和调研，不做无意义耗额。";
 }

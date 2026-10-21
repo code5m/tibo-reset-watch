@@ -1,0 +1,41 @@
+name: Product Integration
+on:
+  push:
+    branches: [main]
+    paths: ["apps/web/**", "packages/**", "database/**", "test/product*", "scripts/sync-platforms.mjs", ".github/workflows/product-integration.yml"]
+  pull_request:
+    paths: ["apps/web/**", "packages/**", "database/**", "test/product*", "scripts/sync-platforms.mjs", ".github/workflows/product-integration.yml"]
+permissions:
+  contents: read
+jobs:
+  postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: resetwatch
+          POSTGRES_PASSWORD: local-test-only
+          POSTGRES_DB: resetwatch_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U resetwatch -d resetwatch_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql://resetwatch:local-test-only@127.0.0.1:5432/resetwatch_test
+      RESETWATCH_TEST_DATABASE: "true"
+      NEXT_PUBLIC_SITE_URL: https://resetwatch.example
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - run: npm ci --no-audit --no-fund
+      - name: Apply existing schema to isolated test database
+        run: psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f database/schema.sql
+      - run: node scripts/sync-platforms.mjs --check
+      - run: npm test
+      - run: npm run check
+      - run: npm run typecheck --workspace @resetwatch/web
+      - run: npm run web:build
