@@ -1,0 +1,1 @@
+{"name": "ResetWatch · 先看到公告，再安排工作", "short_name": "ResetWatch", "start_url": "/workbench/index.html", "scope": "/workbench/", "display": "standalone", "background_color": "#f2f5f3", "theme_color": "#14624d", "lang": "zh-CN", "icons": [{"src": "./icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any"}]}

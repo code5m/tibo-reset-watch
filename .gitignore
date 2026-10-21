@@ -3,3 +3,8 @@ node_modules/
 .DS_Store
 *.log
 .tmp/
+
+test-output/
+__pycache__/
+*.pyc
+design-artifacts/

@@ -10,19 +10,15 @@ ROOT = Path(__file__).resolve().parents[1]
 OUT = Path(os.environ.get("RESETWATCH_TEST_OUTPUT", ROOT / "test-output"))
 OUT.mkdir(parents=True, exist_ok=True)
 
+from workbench_harness import serve
 def load_page(page, demo=True, data=None, status=200):
-    # Pure in-memory DOM/API harness: no outbound network or localhost navigation.
-    markup = (ROOT/"apps/web/public/workbench/index.html").read_text()
-    css = (ROOT/"apps/web/public/workbench/style.css").read_text()
-    core = (ROOT/"packages/reset-core/index.js").read_text()
-    app = (ROOT/"apps/web/public/workbench/app.js").read_text().split("\n",1)[1]
-    payload = data or {"message":"database unavailable"}
-    setup = "globalThis.RESETWATCH_DEMO_PREVIEW="+str(demo).lower()+";"
-    setup += "globalThis.fetch=async()=>new Response("+json.dumps(json.dumps(payload))+",{status:"+str(status)+",headers:{'Content-Type':'application/json'}});"
-    markup = markup.replace('<link rel="stylesheet" href="./style.css">', "<style>"+css+"</style>")
-    markup = markup.replace('<script type="module" src="./app.js"></script>', "<script>"+setup+"</script><script type='module'>"+core+"\n"+app+"</script>")
-    page.bring_to_front()
-    page.set_content(markup)
+    def handle(req):
+        if "/api/v1/product" in req["url"]:
+            if "view=capabilities" in req["url"]:
+                return {"body":{"storage":False,"sources":[{"id":"tibo","name":"Tibo","available":True}],"sendEnabled":False}}
+            return {"status":401,"body":{"message":"请先连接档案。"}}
+        return {"status":status,"body":data or {"message":"database unavailable"}}
+    serve(page,handle,demo)
 results = []
 def check(name, ok):
     if not ok:

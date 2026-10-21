@@ -1,4 +1,7 @@
 import {beijing,pacific,instant,duration,eventState,defaultPostIndex,metrics,actionText,copyDraft,demoCatalog,validateCatalog,TYPE_LABELS,pacificEod} from "./reset-core.js";
+import {initProductUI} from "./product-ui.js";
+import {clockStatus} from "./product-core.js";
+let productUI=null,networkError=false,clockInfo=null;
 const $=id=>document.getElementById(id);
 let events=[],selected=0,page=0,isDemo=false,offset=0,loadedAt=null,nextOffset=null,busy=false,serverSkew=0;
 let catalogVersion=null,requestGeneration=0,pendingSignals=[],calculatedDeadline=null;
@@ -10,6 +13,7 @@ function showTab(name){
   document.querySelectorAll("[data-tab]").forEach(el=>el.classList.toggle("active",el.dataset.tab===name));
   if(name==="history")renderHistory();
   if(name==="studio")renderDrafts();
+  productUI?.onTab(name);
 }
 function setEvents(items,append=false){
   const priorEvent=current()?.id,priorPost=current()?.posts[page]?.id;
@@ -23,18 +27,18 @@ function setEvents(items,append=false){
   $("event-count").textContent=String(events.length);
   $("empty").hidden=!!events.length;$("event-view").hidden=!events.length;
   const previousPost=current()?.posts.findIndex(p=>p.id===priorPost)??-1;
-  page=previousPost>=0?previousPost:current()?defaultPostIndex(current(),now()):0;draw();
+  page=previousPost>=0?previousPost:current()?defaultPostIndex(current(),now()):0;applyFilter();
 }
 async function load(append=false){
   if(busy)return;busy=true;const generation=++requestGeneration;$("refresh").disabled=true;
   try{
-    const requestedOffset=append?nextOffset:0;
+    const requestedOffset=append?nextOffset:0;const requestStarted=Date.now();
     const response=await fetch(`/api/v1/reset-events?limit=20&offset=${requestedOffset||0}`,{cache:"no-store",credentials:"omit"});
     const data=await response.json();
     if(generation!==requestGeneration)return;
     if(!response.ok)throw new Error(data.message||"数据服务暂不可用");
     const normalized=validateCatalog({schemaVersion:data.schemaVersion,events:data.events});
-    serverSkew=instant(data.serverTime)!==null?instant(data.serverTime)-Date.now():0;
+    clockInfo=clockStatus(data.serverTime,requestStarted,Date.now(),Date.now());serverSkew=clockInfo.skew;networkError=false;
     isDemo=false;loadedAt=now();offset=requestedOffset||0;nextOffset=data.nextOffset;
     $("more").hidden=nextOffset==null;$("mode-tag").textContent="真实数据";
     $("data-note").textContent=`共 ${data.total} 个已入库事件 · ${data.pendingReviewCount||0} 条信号待校对`;
@@ -43,6 +47,7 @@ async function load(append=false){
   }catch(e){
     if(generation!==requestGeneration)return;
     // Never replace an API failure with demo data or report "no new reset".
+    networkError=true;
     message(`数据读取失败：${e.message}。这不代表没有新 Reset。`,true);
     if(!events.length)setEvents([]);
   }finally{busy=false;$("refresh").disabled=false;tick();}
@@ -86,7 +91,7 @@ function draw(){
     b.setAttribute("aria-label",`查看第 ${i+1} 条推文`);b.setAttribute("aria-current",i===page?"true":"false");
     b.onclick=()=>go(i);return b;
   }));
-  renderDrafts();tick();
+  renderDrafts();tick();productUI?.selectionChanged();
 }
 function go(n){const e=current();if(!e||n<0||n>=e.posts.length)return;page=n;draw();document.querySelector(".column-scroll").scrollLeft=0;}
 function tick(){
@@ -101,12 +106,13 @@ function tick(){
   $("freshness").textContent=isDemo?"演示模式：时钟在走，不代表正在监控 X。":
     loadedAt?`最近成功读取：北京时间 ${beijing(loadedAt)} · 已过 ${duration(t-loadedAt)}${t-loadedAt>120000?" · 数据可能陈旧，请刷新":""} · 个人账户到账时间未知`:
     "尚未成功读取服务端。动态时钟不代表数据源健康或通知已经送达。";
+  if(!isDemo){$("freshness").textContent+=(networkError?" · 最近请求失败，状态可能陈旧。":"")+(clockInfo?.calibrated?clockInfo.skewWarning?" · 已校准；设备时钟偏差超过 1 分钟。":" · 已按服务端时间校准。":" · 时钟未经服务端校准。");}
 }
 function renderHistory(){
   const table=document.createElement("table"),head=document.createElement("tr");
   ["事件 / 类型","首次公告（北京）","参考最晚截止","官方确认","公告到确认","相对截止","个人到账"].forEach(v=>{const th=document.createElement("th");th.textContent=v;head.append(th);});
   table.append(head);
-  for(const e of events){
+  for(const e of events.filter(e=>!$("history-filter").value||e.type===$("history-filter").value)){
     const s=eventState(e,now()),first=e.posts[0],d=instant(e.deadline?.at),done=instant(s.done?.publishedAt);
     const values=[`${e.title} / ${TYPE_LABELS[e.type]}`,beijing(first.publishedAt,false),beijing(e.deadline?.at,false),beijing(s.done?.publishedAt,false),
       done!==null?duration(done-instant(first.publishedAt)):"未知",done!==null&&d!==null?(d>=done?"提前 ":"延后 ")+duration(d-done):"不可计算","未知"];
@@ -181,6 +187,19 @@ async function saveCatalog(){
     catalogVersion=d.version;$("review-status").textContent=`已保存版本 ${d.version}；没有自动发送告警或群发营销。`;await load();
   }catch(e){$("review-status").textContent=e.message;}
 }
+
+function applyFilter(){
+  const query=$("event-search").value.trim().toLowerCase(),type=$("event-filter").value;
+  const matches=events.map((e,i)=>({e,i})).filter(({e})=>(!type||e.type===type)&&(!query||(e.title+" "+e.posts.map(p=>p.original+" "+(p.translation||"")).join(" ")).toLowerCase().includes(query)));
+  $("event-select").replaceChildren(...matches.map(({e,i})=>{const o=document.createElement("option");o.value=String(i);o.textContent=e.title;return o;}));
+  if(matches.length&&!matches.some(v=>v.i===selected)){selected=matches[0].i;page=defaultPostIndex(current(),now());}
+  $("event-select").value=String(selected);
+  $("no-match").hidden=!events.length||!!matches.length;
+  $("event-view").hidden=!matches.length;
+  draw();productUI?.selectionChanged();
+}
+$("event-search").oninput=applyFilter;$("event-filter").onchange=applyFilter;
+$("history-filter").onchange=renderHistory;
 document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
 $("refresh").onclick=()=>load();$("demo").onclick=demo;$("empty-demo").onclick=demo;$("more").onclick=()=>load(true);
 $("event-select").onchange=()=>{selected=Number($("event-select").value);page=defaultPostIndex(current(),now());draw();};
@@ -203,5 +222,8 @@ const timer=setInterval(()=>{if(!document.hidden)tick();},1000);
 const poll=setInterval(()=>{if(!document.hidden&&!isDemo&&!busy)load();},60000);
 window.addEventListener("pagehide",()=>{clearInterval(timer);clearInterval(poll);});
 document.addEventListener("visibilitychange",()=>{if(!document.hidden){tick();if(!isDemo)load();}});
+productUI=initProductUI({getCurrent:current,getEvents:()=>events,now,isDemo:()=>isDemo,showTab,notify:message,
+  selectEvent(id){const i=events.findIndex(e=>e.id===id);if(i<0){message("这个收藏尚未加载，请加载更多事件后再查看。");return;}
+  $("event-search").value="";$("event-filter").value="";selected=i;page=defaultPostIndex(current(),now());applyFilter();}});
 tick();
 if(globalThis.RESETWATCH_DEMO_PREVIEW===true||location.protocol==="file:"||new URLSearchParams(location.search).get("demo")==="1")demo();else load();

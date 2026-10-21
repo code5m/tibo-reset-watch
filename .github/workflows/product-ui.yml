@@ -1,0 +1,48 @@
+name: Product UI Regression
+on:
+  pull_request:
+    paths: ["apps/client/**", "apps/web/**", "packages/**", "scripts/**", "test/client*", ".github/workflows/product-ui.yml"]
+  push:
+    branches: [main]
+    paths: ["apps/client/**", "apps/web/**", "packages/**", "scripts/**", "test/client*", ".github/workflows/product-ui.yml"]
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: node scripts/sync-platforms.mjs --check
+      - run: node --test test/client-bindings.test.mjs
+      - name: Install isolated test-only compiler and browser
+        run: |
+          npm install --prefix /tmp/rw-client-compiler --ignore-scripts --no-audit --no-fund @vue/compiler-sfc@3.5.13 vue@3.5.13 esbuild@0.25.12
+          python -m pip install playwright==1.57.0
+          python -m playwright install --with-deps chromium
+      - name: Compile actual Vue source (not a native SDK build)
+        run: node scripts/compile-client-fixture.mjs
+        env:
+          CLIENT_COMPILER_ROOT: /tmp/rw-client-compiler
+      - name: Web interfaces with API fixtures
+        run: |
+          python scripts/test-workbench.py
+          python scripts/test-product-ui.py
+      - name: Mobile interfaces with uni API fixtures (not a native device)
+        run: python scripts/test-client-ui.py
+      - name: Preserve exact source, screenshots, and validation evidence
+        if: always()
+        run: git archive --format=zip --output=test-output/tested-source.zip HEAD
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: product-ui-${{ github.sha }}
+          path: test-output/
+          retention-days: 14
+          if-no-files-found: error
