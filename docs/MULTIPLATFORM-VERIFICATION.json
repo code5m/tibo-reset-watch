@@ -1,0 +1,33 @@
+{
+  "version": "0.1.0-source-integration",
+  "repository": "code5m/tibo-reset-watch",
+  "originalBaseCommit": "e492fc9738cd7552e9eafd73b38c08929d4257e6",
+  "delivery": "Ordered source PR integration; GitHub Actions on each head is the current gate evidence",
+  "verifiedPredecessors": [
+    {"pr": 5, "head": "5c2704a82f353600c7a098ca0df1eafaabfae18d", "mergeCommit": "6cb1368dbfa4445b4b67a85d995ef9d37076463b", "checks": ["Tests", "Web Build"], "conclusion": "success"},
+    {"pr": 6, "head": "0f60bfb8c919c4f3f44503ffc4c3bd5257a9caa0", "mergeCommit": "6381fe991c732a84981344768a5276b1e2df299a", "checks": ["Tests", "Web Build", "Workbench Browser Regression"], "conclusion": "success"}
+  ],
+  "testScope": {
+    "sharedCore": {"cases": 32, "localRerun": "PASS"},
+    "apiRouteFunctions": {"cases": 15, "databaseAndSession": "mocked", "localRerun": "PASS"},
+    "browserDOM": {"cases": 20, "api": "mocked", "ciRun": 39620254035, "conclusion": "success"},
+    "coreParity": "byte-identical generated copies checked in CI",
+    "nativeSourceGate": "Source configuration and JavaScript checks only; not a native build"
+  },
+  "notVerified": [
+    "real PostgreSQL transactions",
+    "WeChat SDK build and physical device",
+    "iOS build/signature/device",
+    "Android build/signature/device",
+    "HarmonyOS build/signature/device",
+    "production deployment",
+    "platform push delivery",
+    "app-store review"
+  ],
+  "security": {
+    "nativeCredentialsIncluded": false,
+    "repositoryVisibilityChanged": false,
+    "demoAllowedInProductionCatalog": false,
+    "catalogSaveSendsNotifications": false
+  }
+}

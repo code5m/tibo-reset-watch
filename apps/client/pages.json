@@ -1,0 +1,11 @@
+{
+  "pages": [{
+    "path": "pages/home/index",
+    "style": { "navigationBarTitleText": "ResetWatch", "enablePullDownRefresh": true }
+  }],
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarBackgroundColor": "#f5f8f6",
+    "backgroundColor": "#f5f8f6"
+  }
+}
