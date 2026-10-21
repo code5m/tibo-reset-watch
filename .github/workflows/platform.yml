@@ -1,0 +1,45 @@
+name: Multi-platform Source Gates
+on:
+  pull_request:
+    paths:
+      - 'packages/reset-core/**'
+      - 'apps/client/**'
+      - 'apps/web/public/workbench/**'
+      - 'apps/web/app/api/v1/reset-events/**'
+      - 'apps/web/app/api/admin/reset-catalog/**'
+      - 'scripts/**'
+      - 'test/platform*.test.mjs'
+      - 'docs/MULTIPLATFORM*'
+      - '.github/workflows/platform.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'packages/reset-core/**'
+      - 'apps/client/**'
+      - 'apps/web/public/workbench/**'
+      - 'apps/web/app/api/v1/reset-events/**'
+      - 'apps/web/app/api/admin/reset-catalog/**'
+      - 'scripts/**'
+      - 'test/platform*.test.mjs'
+      - 'docs/MULTIPLATFORM*'
+      - '.github/workflows/platform.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  shared-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: node scripts/sync-platforms.mjs --check
+      - run: node --test test/platform*.test.mjs
+      - run: node --check apps/web/public/workbench/app.js
+      - run: node --check apps/client/common/api.js
+      - run: node --check apps/client/main.js
+      - run: node scripts/platform-preflight.mjs web
+# Native SDK builds and signed-device verification are separate release gates.
+# This job does not call their absence a pass.

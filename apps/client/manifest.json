@@ -1,0 +1,20 @@
+{
+  "name": "ResetWatch",
+  "appid": "",
+  "description": "独立第三方额度消息工作台；非 OpenAI、X 或 Tibo 官方产品。",
+  "versionName": "0.1.0",
+  "versionCode": "100",
+  "transformPx": false,
+  "vueVersion": "3",
+  "app-plus": {
+    "usingComponents": true,
+    "distribute": {
+      "android": { "permissions": ["<uses-permission android:name=\"android.permission.INTERNET\"/>"] },
+      "ios": {}
+    }
+  },
+  "app-harmony": {},
+  "mp-weixin": { "appid": "", "setting": { "urlCheck": true }, "usingComponents": true },
+  "h5": { "title": "ResetWatch", "router": { "mode": "hash" } },
+  "uniStatistics": { "enable": false }
+}

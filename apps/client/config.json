@@ -1,0 +1,6 @@
+{
+  "apiBaseUrl": "",
+  "dataRefreshSeconds": 60,
+  "nativePushEnabled": false,
+  "wechatSubscriptionMessagesEnabled": false
+}
