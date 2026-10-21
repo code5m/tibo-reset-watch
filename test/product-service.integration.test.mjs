@@ -89,6 +89,16 @@ test("PostgreSQL product integration", {skip:!url}, async t=>{
    assert.ok(!r.encrypted_target.includes("test-device-cid"));
    await assert.rejects(svc.mutateProduct({action:"device.register",consent:true,kind:"uni-push",cid:"test-device-cid"},bob.token),{status:409});
   });
+  await t.test("concurrent destination enrollment has exactly one owner",async()=>{
+   const enroll=t=>svc.mutateProduct({action:"device.register",consent:true,kind:"uni-push",cid:"race-device-cid"},t);
+   const results=await Promise.allSettled([enroll(alice.token),enroll(bob.token)]);
+   assert.equal(results.filter(x=>x.status==="fulfilled").length,1);
+   assert.equal(results.filter(x=>x.status==="rejected"&&x.reason.status===409).length,1);
+   const targets=(await pool.query("select id,profile_id from product_devices where token_hash=$1",[
+    createHash("sha256").update('uni-push:{"cid":"race-device-cid"}').digest("hex")])).rows;
+   assert.equal(targets.length,1);
+   await pool.query("delete from product_devices where id=$1",[targets[0].id]);
+  });
   await t.test("send switch defaults to blocked",async()=>{
    delete process.env.PRODUCT_SEND_ENABLED;await svc.planProduct(null);
    assert.ok((await svc.dispatchProduct()).blocked);
