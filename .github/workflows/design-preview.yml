@@ -27,11 +27,13 @@ jobs:
           python -m playwright install --with-deps chromium
       - name: Check design interactions and capture screens
         run: python docs/product-design/v1/test-preview.py
-      - name: Upload browser screenshots and result
+      - name: Upload exact design source, screenshots and result
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: resetwatch-product-design
-          path: design-artifacts/
+          path: |
+            design-artifacts/
+            docs/product-design/v1/
           if-no-files-found: warn
           retention-days: 30
