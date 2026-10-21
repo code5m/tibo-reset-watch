@@ -9,7 +9,7 @@ export class ProductError extends Error {
   status: number;
   constructor(status: number, message: string) { super(message); this.status=status; }
 }
-const fail = (status: number, message: string): never => { throw new ProductError(status, message); };
+function fail(status: number, message: string): never { throw new ProductError(status, message); }
 const hash = (value: string) => crypto.createHash("sha256").update(value).digest("hex");
 const token = () => "rw_" + crypto.randomBytes(32).toString("hex");
 const uuid = (v: unknown): string => typeof v==="string" && /^[\da-f]{8}(-[\da-f]{4}){3}-[\da-f]{12}$/i.test(v) ? v : fail(400,"ID 不正确");
@@ -108,7 +108,7 @@ export async function mutateProduct(body:any,bearer:string,admin=false) {
     });
   }
   if(action==="draft.save" || action==="draft.record-publication") {
-    if(!admin) fail(403,"需要运营人员登录。");
+    if(!admin) fail(403,"内容审核仅限运营人员。");
     return transaction(async c=>{
       if(action==="draft.save") {
         const data=await catalog(c), e=data.events.find(e=>e.id===body.eventId);
@@ -150,6 +150,8 @@ export async function mutateProduct(body:any,bearer:string,admin=false) {
     } else return fail(400,"设备通道不支持。");
     return transaction(async c=>{
       const digest=hash(body.kind+":"+JSON.stringify(target));
+      // Lock an absent token too: concurrent enrollments cannot steal a destination.
+      await c.query("select pg_advisory_xact_lock(hashtextextended($1,0))",[digest]);
       const old=(await c.query("select id,profile_id from product_devices where token_hash=$1 for update",[digest])).rows[0];
       if(old && old.profile_id!==p.id) fail(409,"此设备已关联其他档案，请先解除原关联。");
       const id=old?.id||crypto.randomUUID();
