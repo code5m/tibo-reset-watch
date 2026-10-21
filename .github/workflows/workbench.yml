@@ -1,0 +1,46 @@
+name: Workbench Browser Regression
+on:
+  pull_request:
+    paths:
+      - 'apps/web/**'
+      - 'packages/reset-core/**'
+      - 'scripts/test-workbench.py'
+      - '.github/workflows/workbench.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/web/**'
+      - 'packages/reset-core/**'
+      - 'scripts/test-workbench.py'
+      - '.github/workflows/workbench.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  browser-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install browser test harness
+        run: |
+          python -m pip install playwright==1.57.0
+          python -m playwright install --with-deps chromium
+      - name: Desktop and mobile DOM regression (mocked API, not production E2E)
+        run: python scripts/test-workbench.py
+        env:
+          RESETWATCH_TEST_OUTPUT: test-output
+      - name: Preserve screenshots and test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: workbench-browser-evidence
+          path: test-output/
+          if-no-files-found: warn
+          retention-days: 14

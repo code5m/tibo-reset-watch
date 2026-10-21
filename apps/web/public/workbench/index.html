@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light"><title>ResetWatch · 多端工作台</title>
+<link rel="stylesheet" href="./style.css">
+</head>
+<body>
+<div class="shell">
+<aside>
+  <div class="brand"><span class="brand-icon">R</span><div>ResetWatch<small>TIBO RESET INTELLIGENCE</small></div></div>
+  <nav aria-label="工作台导航">
+    <button data-tab="feed" class="active">◷　实时事件</button>
+    <button data-tab="history">▤　历史对比</button>
+    <button data-tab="studio">✎　内容工作室</button>
+    <button data-tab="review">✓　原帖校对</button>
+    <button data-tab="platforms">▦　客户端与通知</button>
+  </nav>
+  <div class="aside-note">一套来源 · 多端同步<br>独立第三方产品<br>非 OpenAI / X 官方服务</div>
+  <a class="admin-link" href="/admin">原有运营后台 ↗</a>
+</aside>
+<main>
+<header><div><span class="eyebrow">RESETWATCH / WORKBENCH</span><h1 id="page-title">先看到公告，再安排工作。</h1><p>先告警，后文案。时间有依据，未知不猜测。</p></div><div class="header-controls"><span id="mode-tag" class="tag">真实数据</span><button id="refresh">刷新数据</button><button id="demo">查看演示</button></div></header>
+<div id="message" class="message" role="status">正在读取服务端事件…</div>
+<div class="stat-grid">
+  <div class="stat"><span>本页事件</span><strong id="event-count">—</strong><small id="data-note">尚未读取</small></div>
+  <div class="stat"><span>当前事件状态</span><strong id="global-state">—</strong><small>与正在查看的旧帖分开判断</small></div>
+  <div class="stat"><span>当前北京时间</span><strong class="numeric" id="top-clock">—</strong><small>UTC+8 · 每秒更新</small></div>
+</div>
+<section id="tab-feed" class="tab">
+ <div class="section-heading"><h2>官方原帖依据</h2><label>选择事件 <select id="event-select" aria-label="选择事件"></select></label></div>
+ <div id="empty" class="empty" hidden><h2>目前没有可展示的事件</h2><p>没有配置数据源或原帖尚未校对。不会拿演示数据冒充最新公告。</p><button id="empty-demo">打开明确标注的演示</button></div>
+ <div id="event-view" hidden>
+ <div class="event-heading"><div><span class="eyebrow" id="event-type"></span><h2 id="event-title"></h2></div><span id="event-state" class="tag"></span></div>
+ <article id="tweet" class="tweet" tabindex="0" aria-label="推文卡片，可在卡片顶部用左右方向键翻页">
+  <div id="swipe-zone" class="tweet-header"><span class="avatar">TS</span><div><strong>Tibo</strong><div class="muted">@thsottiaux · <span id="post-beijing"></span></div><div class="muted" id="post-pacific"></div></div><span class="x-logo">𝕏</span></div>
+  <div class="post-meta"><span id="post-stage" class="tag"></span><span id="post-evidence"></span></div>
+  <div class="column-scroll" tabindex="0" aria-label="三栏内容，可独立横向滚动">
+   <div class="columns">
+    <section><small>通俗解释</small><h3 id="meaning-title"></h3><div id="meaning-note" class="muted"></div><p id="meaning-text"></p></section>
+    <section><small>中文翻译</small><p id="translation"></p></section>
+    <section><small>English original</small><p id="original" lang="en"></p></section>
+   </div>
+  </div>
+  <div class="dynamic-heading"><span class="dot"></span>动态时间状态 <small>当前时间、已过时间每秒更新；官方状态以服务端为准</small></div>
+  <div class="metric-grid"><div><small>当前时间 · 北京</small><strong id="clock"></strong></div><div><small>距离这条推文发布</small><strong id="elapsed"></strong></div><div class="deadline"><small id="deadline-label"></small><strong id="deadline-value"></strong><small id="deadline-note"></small></div></div>
+  <div id="action" class="action"></div>
+  <footer><span id="source-note">X 原帖引用，非官方嵌入</span><a id="source" target="_blank" rel="noopener noreferrer">查看 𝕏 原帖 ↗</a></footer>
+ </article>
+ <div class="pager"><button id="previous">← 上一条</button><div><strong id="page-count" aria-live="polite"></strong><div id="page-dots"></div></div><button id="next">下一条 →</button></div>
+ <div class="help">卡片顶部左右滑动翻页；正文三栏独立横向浏览，不会误翻页。</div>
+ </div>
+ <button id="more" hidden>加载更多事件</button>
+</section>
+<section id="tab-history" class="tab" hidden><h2>历史对比</h2><p class="muted">统计的是官方确认发帖时间，不是个人到账时间。Global、Banked、补偿分别标注。</p><div id="history" class="table-scroll"></div></section>
+<section id="tab-studio" class="tab" hidden><h2>先发告警，再整理传播稿</h2><p class="muted">根据当前选中事件生成。这里不会自动发布或宣称消息已经送达。</p><div class="studio-grid"><div class="panel"><h3>① 用户告警 · 时间快照</h3><textarea id="alert-draft" readonly></textarea><button data-copy="alert-draft">复制告警</button></div><div class="panel"><h3>② 独立传播草稿 · 未发布</h3><textarea id="social-draft" readonly></textarea><button data-copy="social-draft">复制传播稿</button></div></div></section>
+<section id="tab-review" class="tab" hidden><h2>原帖校对与事件归组</h2><p>将同一轮的宣布、时间承诺和完成归到同一事件；未经核实的记录不能标成官方确认。</p><div class="panel"><a href="/admin/login">管理员登录 ↗</a> <button id="load-catalog">读取校对目录与待审原帖</button><p id="review-status" role="status">此处复用现有后台登录，不在客户端保存管理密钥。</p><div class="review-form">
+<label>选择待审原帖<select id="signal-picker"><option>请先读取目录</option></select></label>
+<div class="review-two"><label>事件 ID（同一轮使用相同 ID）<input id="edit-event-id" placeholder="global-来源帖子ID"></label><label>事件名称<input id="edit-title" placeholder="本轮 Reset"></label></div>
+<div class="review-two"><label>事件类型<select id="edit-type"><option value="unknown">未核实</option><option value="global">Global Reset</option><option value="banked">Banked Reset</option><option value="quota_correction">针对性额度补偿</option></select></label><label>这条原帖的阶段<select id="edit-stage"><option value="announced">首次宣布</option><option value="scheduled">时间承诺</option><option value="propagating">传播中</option><option value="completed">官方完成确认</option><option value="banked_credited">Banked 发放确认</option><option value="info">信息更新</option></select></label></div>
+<label>英文来源（保持原文）<textarea id="edit-original" readonly></textarea></label>
+<div class="review-two"><label>中文翻译<textarea id="edit-translation"></textarea></label><label>通俗解释<textarea id="edit-explanation"></textarea></label></div>
+<div class="review-two"><label>来源核验<select id="edit-evidence"><option value="unverified">尚未核实</option><option value="archive">只有归档，未直接核实官方</option><option value="official">已对照官方原帖核实</option></select></label><label>最晚参考截止（北京时间；不确定留空）<input id="edit-deadline" type="datetime-local" step="1"></label></div>
+<button id="calculate-eod">按原帖太平洋当地日终计算（仅原文写 EOD 时）</button>
+<p class="muted">只查看中文摘要不等于已核实官方。日终换算仍是参考最晚窗口，不是准确到账。</p>
+<button id="add-post">加入/更新校对草稿</button>
+</div>
+<details><summary>待审原始数据（最多 100 条）</summary><pre id="pending"></pre></details><label>事件目录（高级编辑；字段说明见多端文档）<textarea id="catalog-editor" spellcheck="false" placeholder='{"schemaVersion":1,"events":[]}'></textarea></label><button id="save-catalog">校验并保存目录</button><small>带版本校验，遇到并发更新会拒绝覆盖；这里只保存目录，不触发群发。</small></div></section>
+<section id="tab-platforms" class="tab" hidden><h2>一个产品，五个入口。</h2><p class="muted">应用源码、编译成功、真机可用、上架成功是不同状态，不混报。</p><div class="platform-grid">
+ <div class="panel"><span>WEB</span><h3>浏览器工作台</h3><p>事件、翻页卡片、时区、历史与文案；连接现有后台 API。</p><strong>本页面可运行</strong></div>
+ <div class="panel"><span>WECHAT</span><h3>微信小程序</h3><p>共用客户端源码。需微信 AppID、合法服务域名和开发者工具验收。</p><strong>源码就绪 · 未真机验收</strong></div>
+ <div class="panel"><span>iOS</span><h3>苹果客户端</h3><p>共用客户端源码。需签名、设备测试和 App Store 审核。</p><strong>源码就绪 · 未签名打包</strong></div>
+ <div class="panel"><span>ANDROID</span><h3>安卓客户端</h3><p>共用客户端源码。需 Android 构建和真机通知测试。</p><strong>源码就绪 · 未生成 APK</strong></div>
+ <div class="panel"><span>HARMONYOS</span><h3>鸿蒙客户端</h3><p>app-harmony 独立目标，需 HBuilderX、DevEco 和签名；不是 APK。</p><strong>源码就绪 · 未生成鸿蒙包</strong></div>
+ </div><div class="panel"><h3>通知与送达</h3><p>当前客户端不提供“已开启系统推送”的假开关。原有订阅入口可用；微信订阅消息、APNs、安卓和鸿蒙推送尚须平台认证、服务端发送与真机回执验收。</p><a href="/subscribe">打开现有订阅页面 ↗</a>　<a href="/admin/campaigns">查看分发活动 ↗</a></div></section>
+<div class="bottom-note" id="freshness">数据尚未加载。</div>
+</main></div>
+<script type="module" src="./app.js"></script>
+</body></html>
