@@ -1,0 +1,33 @@
+{
+  "id": "resetwatch-secure-session",
+  "displayName": "ResetWatch secure session",
+  "version": "0.1.0",
+  "description": "Origin-bound opt-in OS credential storage; no plaintext fallback.",
+  "uni_modules": {
+    "dependencies": [],
+    "encrypt": [],
+    "platforms": {
+      "cloud": {
+        "tcb": "u",
+        "aliyun": "u",
+        "alipay": "u"
+      },
+      "client": {
+        "Vue": {
+          "vue2": "n",
+          "vue3": "y"
+        },
+        "App": {
+          "app-android": "y",
+          "app-ios": "y",
+          "app-harmony": "y"
+        },
+        "H5-mobile": {
+          "Safari": "n",
+          "Android Browser": "n"
+        },
+        "MP-WEIXIN": "n"
+      }
+    }
+  }
+}

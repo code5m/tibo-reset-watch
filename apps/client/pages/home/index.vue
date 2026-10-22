@@ -69,7 +69,12 @@
  <input v-if="!profile" v-model="recoveryInput" password placeholder="连接已有档案：输入恢复码"/>
  <button v-if="!profile" :disabled="demoMode || busy" @tap="connectProfile">连接已有档案</button>
  <view v-if="recoveryCode" class="secret"><text>恢复码仅显示一次，请私下保存，关闭后不再显示。</text><button @tap="copy(recoveryCode)">复制恢复码</button><button @tap="recoveryCode=''">已保存，隐藏</button></view>
- <text class="muted">客户端恢复码仅在本次会话内存中使用；未接入安全存储前，重启需重新连接，不把凭据明文长期存盘。</text>
+ <view class="vault-status">
+ <text class="label">本机安全保存</text><text>{{vaultText}}</text>
+ <button v-if="profile && vault.available && !vault.remembered" :disabled="busy || demoMode" @tap="rememberConnection">同意并安全保存连接</button>
+ <button v-if="vault.available" :disabled="busy || demoMode" @tap="forgetSavedConnection">清除本机保存的凭据</button>
+ <text class="muted">默认仅保留本次连接。不支持安全存储时不会降级为明文保存；凭据不跨服务域名使用。</text>
+ </view>
  <button v-if="profile" :disabled="busy" @tap="reloadProfile">重新读取档案</button><button v-if="profile" :disabled="busy || demoMode" @tap="logout">断开本次连接</button>
  </view>
  <view class="panel"><view class="setting"><text>主题</text><picker :range="themeOptions" range-key="label" @change="changeTheme"><view class="picker">{{themeOptions.find(x=>x.id===theme).label}} ▾</view></picker></view><button v-if="isMini" @tap="tab='reminders';loadDeliveries()">提醒偏好与送达记录</button>
@@ -90,7 +95,8 @@
 
 <script>
 import {getEvents,apiOrigin,normalizeOrigin} from "../../common/api.js";
-import {product,setSession,clearSession} from "../../common/product.js";
+import {product,setSession,clearSession,clientSession} from "../../common/product.js";
+import {nativeVault} from "../../common/secure-vault.js";
 import {authorizePush,startPushListening,forgetPushConsent,flushReceipts} from "../../common/push.js";
 import {emptyPersonal,validatePersonal,deliveryLabel,clockStatus} from "../../common/product-core.js";
 import {validateCatalog,beijing,pacific,eventState,defaultPostIndex,metrics,actionText,copyDraft,demoCatalog,instant,duration,TYPE_LABELS} from "../../common/reset-core.js";
@@ -104,7 +110,7 @@ export default{
   roleLabels:{owner:"所有者",editor:"编辑者",viewer:"查看者"},
   historyTypes:[{id:"",label:"全部类型"},{id:"global",label:"Global Reset"},{id:"banked",label:"Banked Reset"},{id:"quota_correction",label:"定向补偿"}],
   events:[],eventIndex:0,postIndex:0,demoMode:false,message:"先阅读公开消息，再决定是否订阅。",clock:Date.now(),skew:0,lastLoaded:null,nextOffset:null,originInput:"",busy:false,clockNote:"设备时钟尚未校准。",
-  profile:null,preferences:emptyPersonal().preferences,profileName:"我的设备",recoveryInput:"",recoveryCode:"",taskTitle:"",teams:[],teamName:"",inviteInput:"",teamTaskTitle:"",caps:null,devices:[],deliveries:[]
+  vault:{available:false,backend:"unsupported",remembered:false,lastError:null},profile:null,preferences:emptyPersonal().preferences,profileName:"我的设备",recoveryInput:"",recoveryCode:"",taskTitle:"",teams:[],teamName:"",inviteInput:"",teamTaskTitle:"",caps:null,devices:[],deliveries:[]
  };},
  computed:{
   tabs(){return[{id:"events",label:"动态",icon:"◷"},{id:"history",label:"历史",icon:"▤"},...(!this.isMini?[{id:"reminders",label:"提醒",icon:"◎"}]:[]),{id:"mine",label:"我的",icon:"○"}];},
@@ -119,14 +125,20 @@ export default{
   deadlineNote(){if(this.state.done)return "本轮已确认完成；查看旧预告不会回滚状态。";const d=this.event?.deadline;return d?`（${d.basis==="explicit"?"明确时间窗口":d.basis+" 换算"}，${d.kind==="execution_time"?"官方明确执行时刻":"参考最晚截止，可能提前"}）`:"没有可信截止，不生成虚假倒计时。";},
   alertDraft(){return this.event?copyDraft(this.event,this.clock):"先选择事件。";},socialDraft(){return this.event?copyDraft(this.event,this.clock,true):"先选择事件。";},
   stale(){return this.lastLoaded&&this.clock-this.lastLoaded>120000;},
+  vaultText(){if(!this.vault.available)return "当前平台仅支持本次内存连接（小程序 / Web）。";if(this.vault.lastError)return "安全存储操作未确认成功，请解锁后重试；不使用明文备用。";const names={"android-keystore":"Android Keystore","ios-keychain":"iOS Keychain","harmony-asset":"鸿蒙关键资产存储"};return(this.vault.remembered?"已安全保存，下次前台打开可恢复连接：":"仅本次连接；可主动启用：")+names[this.vault.backend];},
   capabilityText(){return this.caps?`服务端发送：${this.caps.sendEnabled?'开启':'关闭'}；${this.isMini?'微信':'原生'}配置：${(this.isMini?this.caps.wechat:this.caps.nativePush)?'已配置，送达另行验证':'未配置'}`:"渠道状态未知。";}
  },
- onLoad(options){this._requestedEvent=options?.event||null;try{this.originInput=apiOrigin();this.theme=uni.getStorageSync("resetwatch.theme")||"system";}catch{}},
- onShow(){this._visible=true;this.startTimers();if(!this.demoMode)this.refresh(false);this.loadProfileSilently();startPushListening();},
- onHide(){this.stopTimers();this.recoveryCode="";},onUnload(){this.stopTimers();this.recoveryCode="";},
+ onLoad(options){clientSession.install(nativeVault());this.updateVault();this._requestedEvent=options?.event||null;try{this.originInput=apiOrigin();this.theme=uni.getStorageSync("resetwatch.theme")||"system";}catch{}},
+ onShow(){this._visible=true;this.startTimers();if(!this.demoMode)this.refresh(false);this.resumeConnection();startPushListening();},
+ onHide(){this.stopTimers();clientSession.invalidatePending();this.clearSecretInputs();},onUnload(){this.stopTimers();clientSession.invalidatePending();this.clearSecretInputs();},
  onPullDownRefresh(){this.refresh(false).finally(()=>uni.stopPullDownRefresh());},
  methods:{
   beijing,pacific,eventState,actionText,deliveryLabel,
+  updateVault(){this.vault=clientSession.snapshot();},
+  clearSecretInputs(){this.recoveryCode="";this.recoveryInput="";this.inviteInput="";},
+  async resumeConnection(){if(this.demoMode)return;try{await clientSession.restore();if(this._visible&&!this.demoMode)await this.loadProfileSilently();}catch(e){if(this._visible)this.toast(e.message);}finally{this.updateVault();}},
+  rememberConnection(){return this.work(async()=>{this.live();const choice=await modal({title:"安全保存连接",content:"将此服务的连接凭据保存到系统安全存储，不同步到其他设备。你可随时清除。\n"+apiOrigin()});if(!choice.confirm||!this._visible)return;try{if(await clientSession.remember(true))this.toast("已安全保存到此设备。");}finally{this.updateVault();}});},
+  forgetSavedConnection(){return this.work(async()=>{this.live();try{await clientSession.forget({disconnect:false});this.toast("已清除本机保存；当前内存连接保留。");}finally{this.updateVault();}});},
   toast(text){this.message=text;uni.showToast({title:text.slice(0,45),icon:"none",duration:3000});},
   async work(fn){if(this.busy)return;this.busy=true;try{await fn();}catch(e){this.toast(e.message||"操作未完成。");}finally{this.busy=false;}},
   live(){if(this.demoMode)throw Error("演示模式禁止写入服务端。");},
@@ -154,11 +166,11 @@ export default{
   touchEnd(e){const t=this._touch;this._touch=null;if(!t||!e.changedTouches.length)return;const dx=e.changedTouches[0].clientX-t.x,dy=e.changedTouches[0].clientY-t.y;if(Math.abs(dx)>55&&Math.abs(dx)>Math.abs(dy)*1.5)this.go(this.postIndex+(dx<0?1:-1));},
   confirmDuration(e){const d=eventState(e,this.clock).done;return d?duration(instant(d.publishedAt)-instant(e.posts[0].publishedAt)):"未知";},
   copy(value){uni.setClipboardData({data:String(value),success:()=>this.toast("已复制；未发送或发布。"),fail:()=>this.toast("复制失败，请手动选择文本。")});},
-  async loadProfileSilently(){try{this.caps=await product("capabilities");const d=await product("profile");this.applyProfile(d.profile);await flushReceipts();}catch(e){if(e.status!==401)this.message="档案服务未就绪："+e.message;}},
+  async loadProfileSilently(){try{this.caps=await product("capabilities");if(!clientSession.snapshot().connected)return;const d=await product("profile");this.applyProfile(d.profile);await flushReceipts();}catch(e){if(e.status===401){await clientSession.forget();this.applyProfile(null);this.updateVault();}else this.message="档案服务未就绪："+e.message;}},
   applyProfile(p){this.profile=p;this.preferences=clone(p?.data.preferences||emptyPersonal().preferences);if(p)this.theme=p.data.preferences.theme;},
   reloadProfile(){return this.work(async()=>{this.applyProfile((await product("profile")).profile);this.toast("已重新读取服务端档案。");});},
-  createProfile(){return this.work(async()=>{this.live();const ok=await modal({title:"创建独立档案",content:"仅在 ResetWatch 保存提醒偏好、收藏和任务。不需要 OpenAI 登录。是否同意？"});if(!ok.confirm)return;const d=await product("",{action:"profile.create",name:this.profileName,consent:true});setSession(d.token);this.applyProfile(d.profile);this.recoveryCode=d.token;this.toast("已创建，恢复码请私下保存。");});},
-  connectProfile(){return this.work(async()=>{this.live();const token=this.recoveryInput.trim();setSession(token);try{this.applyProfile((await product("profile")).profile);this.recoveryInput="";await flushReceipts();this.toast("档案已连接。");}catch(e){clearSession();throw e;}});},
+  createProfile(){return this.work(async()=>{this.live();const ok=await modal({title:"创建独立档案",content:"仅在 ResetWatch 保存提醒偏好、收藏和任务。不需要 OpenAI 登录。是否同意？"});if(!ok.confirm)return;await clientSession.forget();const d=await product("",{action:"profile.create",name:this.profileName,consent:true});setSession(d.token);this.updateVault();this.applyProfile(d.profile);this.recoveryCode=d.token;this.toast("已创建，恢复码请私下保存。");});},
+  connectProfile(){return this.work(async()=>{this.live();const token=this.recoveryInput.trim();this.recoveryInput="";await clientSession.forget();setSession(token);this.updateVault();try{this.applyProfile((await product("profile")).profile);this.recoveryInput="";await flushReceipts();this.toast("档案已连接。");}catch(e){clearSession();throw e;}finally{this.updateVault();}});},
   async saveData(data){this.live();if(!this.profile)throw Error("请先连接设备档案。");const d=await product("",{action:"profile.save",expectedVersion:this.profile.version,data:validatePersonal(data)});this.applyProfile(d.profile);this.toast("已保存到服务端。");},
   savePreferences(){return this.work(async()=>{const d=clone(this.profile.data);d.preferences=clone(this.preferences);d.preferences.theme=this.theme;await this.saveData(d);});},
   changeTheme(e){this.theme=this.themeOptions[Number(e.detail.value)].id;uni.setStorageSync("resetwatch.theme",this.theme);},
@@ -178,11 +190,11 @@ export default{
   addTeamTask(wid){return this.work(async()=>{const w=this.teams.find(w=>w.id===wid),d=clone(w.data);d.tasks.push({id:id(),title:this.teamTaskTitle.trim(),priority:"normal",done:false,createdAt:new Date().toISOString(),eventId:null});await this.saveTeam(w,d);this.teamTaskTitle="";});},
   toggleTeamTask(wid,tid){return this.work(async()=>{const w=this.teams.find(w=>w.id===wid),d=clone(w.data),t=d.tasks.find(t=>t.id===tid);t.done=!t.done;await this.saveTeam(w,d);});},
   inviteViewer(wid){return this.work(async()=>{this.live();const r=await product("",{action:"workspace.invite",id:wid,role:"viewer"});this.recoveryCode=r.invite;this.toast("单次查看邀请已生成，24 小时有效，请私下复制发送。");});},
-  saveOrigin(){return this.work(async()=>{const value=normalizeOrigin(this.originInput);const ok=await modal({title:"确认服务地址",content:"仅连接你信任的 ResetWatch 服务。切换会断开旧档案。\\n"+value});if(!ok.confirm)return;forgetPushConsent();clearSession();this.applyProfile(null);this.teams=[];this.devices=[];this.deliveries=[];this.recoveryCode="";uni.setStorageSync("resetwatch.apiOrigin",value);this.demoMode=false;this.toast("域名已保存，请刷新事件并重新连接档案。");});},
+  saveOrigin(){return this.work(async()=>{const value=normalizeOrigin(this.originInput);const ok=await modal({title:"确认服务地址",content:"仅连接你信任的 ResetWatch 服务。切换会断开旧档案。\\n"+value});if(!ok.confirm)return;forgetPushConsent();try{await clientSession.forget();}finally{this.applyProfile(null);this.teams=[];this.devices=[];this.deliveries=[];this.clearSecretInputs();this.updateVault();}uni.setStorageSync("resetwatch.apiOrigin",value);this.demoMode=false;this.toast("域名已保存，请刷新事件并重新连接档案。");});},
   copySubscription(){try{this.copy(apiOrigin()+"/subscribe");}catch(e){this.toast(e.message);}},
-  logout(){return this.work(async()=>{this.live();await product("",{action:"profile.logout"});clearSession();this.applyProfile(null);this.recoveryCode="";this.deliveries=[];this.devices=[];this.teams=[];});},
+  logout(){return this.work(async()=>{this.live();let serverError=null;try{await product("",{action:"profile.logout"});}catch(e){serverError=e;}try{forgetPushConsent();await clientSession.forget();}finally{this.applyProfile(null);this.clearSecretInputs();this.deliveries=[];this.devices=[];this.teams=[];this.updateVault();}if(serverError)this.toast("本机已断开；服务端退出未确认，请网络恢复后核对。");});},
   exportData(){return this.work(async()=>{this.live();this.copy(JSON.stringify(await product("export"),null,2));});},
-  deleteProfile(){return this.work(async()=>{this.live();const ok=await modal({title:"永久删除本产品档案",content:"将删除本产品偏好和任务，不影响 OpenAI 账户。此操作不可撤销。"});if(!ok.confirm)return;await product("",{action:"profile.delete",confirmation:"DELETE"});forgetPushConsent();clearSession();this.applyProfile(null);this.teams=[];this.deliveries=[];this.devices=[];this.recoveryCode="";this.toast("本产品档案已删除。");});}
+  deleteProfile(){return this.work(async()=>{this.live();const ok=await modal({title:"永久删除本产品档案",content:"将删除本产品偏好和任务，不影响 OpenAI 账户。此操作不可撤销。"});if(!ok.confirm)return;await product("",{action:"profile.delete",confirmation:"DELETE"});forgetPushConsent();try{await clientSession.forget();}finally{this.applyProfile(null);this.teams=[];this.deliveries=[];this.devices=[];this.clearSecretInputs();this.updateVault();}this.toast("本产品档案已删除。");});}
  }
 };
 </script>

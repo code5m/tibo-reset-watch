@@ -1,0 +1,9 @@
+import { UTSAndroid } from 'io.dcloud.uts'
+import { ResetWatchVault } from 'uts.sdk.modules.resetwatchSecureSession'
+import { VaultBackend, VaultInvoke, VaultCallback } from '../interface.uts'
+export const vaultBackend: VaultBackend = function(): string { return "android-keystore" }
+export const invokeVault: VaultInvoke = function(operation: string, origin: string, value: string, callback: VaultCallback) {
+  const context = UTSAndroid.getAppContext()
+  if (context == null) {callback('{"ok":false,"code":"unavailable"}'); return}
+  ResetWatchVault.execute(context, operation, origin, value, callback)
+}

@@ -4,9 +4,11 @@ import {readFileSync} from "node:fs";
 const dir=new URL("../apps/client/common/",import.meta.url);
 globalThis.__clientOrigin="https://resetwatch.example";
 const load=source=>import("data:text/javascript;base64,"+Buffer.from(source).toString("base64"));
-const api=await load(readFileSync(new URL("product.js",dir),"utf8")
- .replace(/^import .*;\n/gm,"")
- .replace('let sessionToken', 'const apiOrigin=()=>globalThis.__clientOrigin;\nlet sessionToken'));
+const sessionUrl=new URL("session-state.js",dir).href;
+const api=await load(`import {createSession} from ${JSON.stringify(sessionUrl)};
+const apiOrigin=()=>globalThis.__clientOrigin;
+`+
+ readFileSync(new URL("product.js",dir),"utf8").replace(/^import .*;\n/gm,""));
 const calls=[],storage=new Map(),requests=[];let callback,consent=true,permission="authorized",providerType="receive",failProduct=null;
 globalThis.__pushConfig={nativePushEnabled:true,wechatSubscriptionMessagesEnabledEnabled:true,wechatSubscriptionMessagesEnabled:true};
 globalThis.__fakeProduct=async(view,body)=>{calls.push(body);if(failProduct)throw Object.assign(Error("failure"),{status:failProduct});return{id:"device",registered:true,delivered:false};};
@@ -94,4 +96,16 @@ test("parallel receipt arrivals are serialized without dropping new IDs",async()
  assert.deepEqual(storage.get("resetwatch.receipts."+globalThis.__clientOrigin),[]);
  assert.equal(calls.filter(c=>c.action==="delivery.ack"&&c.id===second).length,1);
  push.forgetPushConsent();
+});
+
+test("client blocks bearer on unexpected API-origin changes",()=>{
+ setup();const old=globalThis.__clientOrigin;api.setSession(token);globalThis.__clientOrigin="https://untrusted.test";
+ assert.throws(()=>api.productRequest("profile"),e=>e.code==="origin_changed");assert.equal(requests.length,0);globalThis.__clientOrigin=old;
+});
+test("late profile response cannot reconnect after local logout",async()=>{
+ setup();api.setSession(token);const r=api.productRequest("profile");api.clearSession();requests[0].success({statusCode:200,data:{profile:{id:"old"}}});
+ await assert.rejects(r.promise,e=>e.code==="session_changed");
+});
+test("abort settles promise even if native transport never calls fail",async()=>{
+ setup();const r=api.productRequest("profile");r.abort();await assert.rejects(r.promise,e=>e.code==="session_changed");
 });

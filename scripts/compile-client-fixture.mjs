@@ -48,6 +48,15 @@ try{
  const result=await build({entryPoints:[filename],bundle:true,write:false,format:"iife",platform:"browser",
   nodePaths:[path.resolve(process.env.CLIENT_COMPILER_ROOT||".client-compiler","node_modules")],
   define:{"process.env.NODE_ENV":'"production"',"__VUE_OPTIONS_API__":"true","__VUE_PROD_DEVTOOLS__":"false","__VUE_PROD_HYDRATION_MISMATCH_DETAILS__":"false"},
+  plugins:[{name:"explicit-native-vault-fixture",setup(b){
+    b.onResolve({filter:/uni_modules\/resetwatch-secure-session$/},()=>({path:"vault",namespace:"fixture-vault"}));
+    b.onLoad({filter:/.*/,namespace:"fixture-vault"},()=>({contents:`
+      export function vaultBackend(){return window.__vaultBackend||"unsupported";}
+      export function invokeVault(op,origin,value,callback){
+        if(window.__vaultInvoke)return window.__vaultInvoke(op,origin,value,callback);
+        callback(JSON.stringify({ok:false,code:"unsupported"}));
+      }`,loader:"js"}));
+  }}],
   logLevel:"warning"});
  fs.writeFileSync(path.join(out,"client-fixture.js"),result.outputFiles[0].text);
  // The browser fixture uses CSS-pixel equivalents only. Native responsive units remain in source.

@@ -1,0 +1,45 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {readFileSync} from "node:fs";
+import {createSession} from "../apps/client/common/session-state.js";
+const token="rw_"+"a".repeat(64), second="rw_"+"b".repeat(64), a="https://resetwatch.test", b="https://other.test";
+const next=()=>new Promise(r=>setImmediate(r));
+const pending=()=>{let resolve,reject;const promise=new Promise((yes,no)=>{resolve=yes;reject=no;});return{promise,resolve,reject};};
+function setup(){
+ let origin=a;
+ const native=new Map(),flags=new Map(),calls=[];
+ const vault={backend:"android-keystore",async read(key){calls.push(["read",key]);return native.get(key)||"";},async write(key,v){calls.push(["write",key]);native.set(key,v);},async remove(key){calls.push(["remove",key]);native.delete(key);}};
+ const policy={isBlocked:key=>flags.get(key)!==true,setBlocked:(key,blocked)=>flags.set(key,!blocked)};
+ const session=createSession(()=>origin,policy);session.install(vault);
+ return{session,vault,native,flags,calls,policy,change:v=>{origin=v;},fresh(){const n=createSession(()=>origin,policy);n.install(vault);return n;}};
+}
+test("default connection does not write native or ordinary storage",()=>{const x=setup();x.session.set(token);assert.equal(x.calls.length,0);assert.equal(x.flags.size,0);assert.equal(x.session.snapshot().remembered,false);});
+test("only explicit boolean consent enables native persistence",async()=>{const x=setup();x.session.set(token);for(const v of [false,undefined,1,"true"])await assert.rejects(x.session.remember(v));assert.equal(x.calls.length,0);});
+test("unsupported platform cannot fallback to plaintext persistence",async()=>{const x=setup();x.session.install({backend:"unsupported"});x.session.set(token);await assert.rejects(x.session.remember(true),e=>e.code==="unsupported");assert.equal(x.flags.size,0);});
+test("remember writes to the origin-specific vault and metadata is boolean only",async()=>{const x=setup();x.session.set(token);assert.equal(await x.session.remember(true),true);assert.equal(x.native.get(a),token);assert.equal(x.flags.get(a),true);assert.ok(!JSON.stringify([...x.flags]).includes(token));});
+test("a subsequent launch restores only previously opted-in origin",async()=>{const x=setup();x.session.set(token);await x.session.remember(true);const next=x.fresh();assert.equal(await next.restore(),true);assert.equal(next.authorization(),"Bearer "+token);assert.equal(next.snapshot().remembered,true);});
+test("existing keychain item without consent metadata is not automatically read",async()=>{const x=setup();x.native.set(a,token);assert.equal(await x.session.restore(),false);assert.equal(x.calls.length,0);});
+test("missing native value cannot produce authenticated state",async()=>{const x=setup();x.flags.set(a,true);assert.equal(await x.session.restore(),false);assert.equal(x.session.snapshot().connected,false);});
+test("switching origins cannot forward the bearer",()=>{const x=setup();x.session.set(token);x.change(b);assert.throws(()=>x.session.authorization(),e=>e.code==="origin_changed");assert.equal(x.session.snapshot().connected,false);});
+test("explicit foreign origin binding is rejected",()=>{const x=setup();assert.throws(()=>x.session.set(token,b));assert.equal(x.session.authorization(),null);});
+test("public snapshots never expose the token",async()=>{const x=setup();x.session.set(token);await x.session.remember(true);assert.ok(!JSON.stringify(x.session.snapshot()).includes(token));});
+test("forget removes native secret and disables automatic restore",async()=>{const x=setup();x.session.set(token);await x.session.remember(true);await x.session.forget();assert.equal(x.native.size,0);assert.equal(x.session.authorization(),null);assert.equal(await x.fresh().restore(),false);});
+test("forget-saved can retain current memory-only connection",async()=>{const x=setup();x.session.set(token);await x.session.remember(true);await x.session.forget({disconnect:false});assert.equal(x.session.authorization(),"Bearer "+token);assert.equal(x.session.snapshot().remembered,false);assert.equal(await x.fresh().restore(),false);});
+test("failed native deletion cannot resurrect on next launch",async()=>{const x=setup();x.session.set(token);await x.session.remember(true);x.vault.remove=async()=>{throw Error("locked");};await assert.rejects(x.session.forget(),e=>e.code==="removal_failed");assert.equal(x.native.get(a),token);assert.equal(x.session.authorization(),null);assert.equal(await x.fresh().restore(),false);});
+test("late restore after logout is discarded",async()=>{const x=setup(),p=pending();x.flags.set(a,true);x.vault.read=()=>p.promise;const restore=x.session.restore();await next();const forget=x.session.forget();p.resolve(token);assert.equal(await restore,false);await forget;assert.equal(x.session.authorization(),null);});
+test("late restore after backgrounding is discarded",async()=>{const x=setup(),p=pending();x.flags.set(a,true);x.vault.read=()=>p.promise;const restore=x.session.restore();await next();x.session.invalidatePending();p.resolve(token);assert.equal(await restore,false);});
+test("late restore after origin switch is discarded",async()=>{const x=setup(),p=pending();x.flags.set(a,true);x.vault.read=()=>p.promise;const restore=x.session.restore();await next();x.change(b);p.resolve(token);assert.equal(await restore,false);assert.equal(x.session.authorization(),null);});
+test("parallel restores perform at most one accepted connection",async()=>{const x=setup();x.flags.set(a,true);x.native.set(a,token);const values=await Promise.all([x.session.restore(),x.session.restore()]);assert.deepEqual(values,[true,false]);assert.equal(x.calls.length,1);});
+test("pending save followed by logout ends with deletion",async()=>{const x=setup(),p=pending();x.session.set(token);x.vault.write=async(key,v)=>{await p.promise;x.native.set(key,v);};const save=x.session.remember(true);await next();const forget=x.session.forget();p.resolve();assert.equal(await save,false);await forget;assert.equal(x.native.size,0);});
+test("save-delete-save serialization retains only newest consented session",async()=>{const x=setup(),p=pending();x.session.set(token);let first=true;x.vault.write=async(key,v)=>{if(first){first=false;await p.promise;}x.native.set(key,v);};const old=x.session.remember(true);await next();const forget=x.session.forget();x.session.set(second);const recent=x.session.remember(true);p.resolve();await old;await forget;assert.equal(await recent,true);assert.equal(x.native.get(a),second);});
+test("corrupt saved credentials are not used for requests",async()=>{const x=setup();x.flags.set(a,true);x.native.set(a,"not a token");await assert.rejects(x.session.restore());assert.equal(x.session.authorization(),null);});
+test("failed keychain read stays disconnected",async()=>{const x=setup();x.flags.set(a,true);x.vault.read=async()=>{throw Object.assign(Error("locked"),{code:"locked"});};await assert.rejects(x.session.restore());assert.equal(x.session.snapshot().lastError,"locked");assert.equal(x.session.authorization(),null);});
+test("failed consent metadata write never enables restore",async()=>{const x=setup();x.policy.setBlocked=(key,v)=>{x.flags.set(key,false);if(!v)throw Error("metadata failed");};x.session.set(token);await assert.rejects(x.session.remember(true));assert.equal(await x.fresh().restore(),false);});
+// Actual adapter logic with an injected native boundary; no OS runtime claim.
+const text=readFileSync(new URL("../apps/client/common/secure-vault.js",import.meta.url),"utf8").replace(/^import .*;\n/gm,"");
+const {createVaultAdapter}=await import("data:text/javascript;base64,"+Buffer.from(text).toString("base64"));
+test("adapter rejects malformed native response",async()=>{const v=createVaultAdapter("ios-keychain",(o,k,x,cb)=>cb("bad"));await assert.rejects(v.read(a),e=>e.code==="invalid_response");});
+test("adapter suppresses native error details",async()=>{const v=createVaultAdapter("ios-keychain",(o,k,x,cb)=>cb(JSON.stringify({ok:false,code:token})));await assert.rejects(v.read(a),e=>!e.message.includes(token)&&e.code==="vault_failed");});
+test("adapter times out without fallback and ignores late callback",async()=>{let done;const v=createVaultAdapter("ios-keychain",(o,k,x,cb)=>{done=cb;},5);await assert.rejects(v.read(a),e=>e.code==="vault_timeout");done(JSON.stringify({ok:true,value:token}));});
+test("adapter requires a string value for reads",async()=>{const v=createVaultAdapter("ios-keychain",(o,k,x,cb)=>cb('{"ok":true}'));await assert.rejects(v.read(a));});
+test("adapter handles duplicate callback once",async()=>{const v=createVaultAdapter("ios-keychain",(o,k,x,cb)=>{cb(JSON.stringify({ok:true,value:token}));cb('{"ok":false}');});assert.equal(await v.read(a),token);});
