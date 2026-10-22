@@ -1,0 +1,13 @@
+{
+  "bsonType": "object",
+  "required": ["_id", "hash", "status", "createdAt"],
+  "permission": {"read": false, "create": false, "update": false, "delete": false},
+  "properties": {
+    "_id": {"bsonType": "string"},
+    "hash": {"bsonType": "string"},
+    "status": {"bsonType": "string", "enum": ["processing", "accepted", "failed", "unknown"]},
+    "createdAt": {"bsonType": "number"},
+    "updatedAt": {"bsonType": "number"},
+    "result": {"bsonType": "object"}
+  }
+}

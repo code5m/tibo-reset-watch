@@ -110,6 +110,27 @@ test("PostgreSQL product integration", {skip:!url}, async t=>{
    const native=(await svc.readProduct("deliveries",alice.token)).deliveries.find(x=>x.channel==="native");
    assert.equal(native.status,"accepted");assert.equal(native.received_at,null);
   });
+  await t.test("explicit retry changes request key but preserves delivery identity",async()=>{
+   const native=(await svc.readProduct("deliveries",alice.token)).deliveries.find(x=>x.channel==="native");
+   await pool.query("update product_deliveries set status='unknown' where id=$1",[native.id]);
+   await assert.rejects(svc.mutateProduct({action:"delivery.retry",id:native.id},alice.token),{status:400});
+   await svc.mutateProduct({action:"delivery.retry",id:native.id,confirmation:"可能重复发送"},alice.token);
+   const row=(await pool.query("select payload from product_deliveries where id=$1",[native.id])).rows[0];
+   assert.notEqual(row.payload.requestId,native.id);
+   globalThis.fetch=async(_,init)=>{
+    const sent=JSON.parse(init.body);
+    assert.equal(sent.deliveryId,native.id);assert.equal(sent.requestId,row.payload.requestId);
+    assert.equal(init.headers["Idempotency-Key"],row.payload.requestId);
+    return Response.json({accepted:true,providerId:"fixture-explicit-retry"});
+   };
+   assert.equal((await svc.dispatchProduct()).accepted,1);
+  });
+  await t.test("a receipt blocks a subsequent duplicate-risk retry",async()=>{
+   const native=(await svc.readProduct("deliveries",alice.token)).deliveries.find(x=>x.channel==="native");
+   await svc.mutateProduct({action:"delivery.ack",id:native.id,stage:"received"},alice.token);
+   await pool.query("update product_deliveries set status='unknown' where id=$1",[native.id]);
+   await assert.rejects(svc.mutateProduct({action:"delivery.retry",id:native.id,confirmation:"可能重复发送"},alice.token),{status:409});
+  });
   await t.test("revocation persists without claiming provider recall",async()=>{
    const r=await svc.mutateProduct({action:"device.revoke",id:device.id},alice.token);assert.equal(r.revoked,true);
    assert.ok((await svc.readProduct("devices",alice.token)).devices[0].revoked_at);

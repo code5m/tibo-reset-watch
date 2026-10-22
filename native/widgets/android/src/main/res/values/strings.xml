@@ -1,0 +1,5 @@
+<resources>
+  <!-- Override in the trusted host before release. Not a secret. -->
+  <string name="resetwatch_api_origin" translatable="false"></string>
+  <string name="resetwatch_widget_note">刷新由系统调度 · 个人到账未知</string>
+</resources>

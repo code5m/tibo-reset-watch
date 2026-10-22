@@ -200,9 +200,15 @@ export async function mutateProduct(body:any,bearer:string,admin=false) {
     }
     if(action==="delivery.retry") {
       if(body.confirmation!=="可能重复发送") fail(400,"请先确认未知结果重试可能重复发送。");
-      const r=await c.query("update product_deliveries set status='queued',error_code=null where id=$1 and profile_id=$2 and status in ('failed','unknown') returning id",[uuid(body.id),p.id]);
-      if(!r.rows.length) fail(409,"此消息状态已变化，不能重复重试。");
-      await audit(c,p.id,action,body.id);return {queued:true,duplicateRiskAcknowledged:true};
+      // Only an explicit, authenticated user retry creates a new provider idempotency key.
+      // Re-delivery without such an action keeps the same key and cannot double-send through the relay.
+      const requestId=crypto.randomUUID();
+      const r=await c.query(`update product_deliveries set status='queued',error_code=null,
+        payload=jsonb_set(payload,'{requestId}',to_jsonb($3::text))
+        where id=$1 and profile_id=$2 and status in ('failed','unknown')
+        and received_at is null and opened_at is null returning id`,[uuid(body.id),p.id,requestId]);
+      if(!r.rows.length) fail(409,"此消息状态已变化或已有回执，不能重复重试。");
+      await audit(c,p.id,action,body.id,{requestId});return {queued:true,duplicateRiskAcknowledged:true};
     }
     if(action==="workspace.create") {
       if((await c.query("select count(*)::int as n from product_workspaces where owner_id=$1",[p.id])).rows[0].n>=10) fail(400,"每个档案最多拥有 10 个空间。");
@@ -277,7 +283,7 @@ function relayConfigured() {
   try {
     const url=new URL(process.env.PRODUCT_PUSH_RELAY_URL||"");
     return url.protocol==="https:" && !url.username&&!url.password &&
-      Boolean(process.env.PRODUCT_PUSH_RELAY_SECRET&&encryptionKey());
+      Boolean((process.env.PRODUCT_PUSH_RELAY_SECRET?.length||0)>=32&&encryptionKey());
   } catch { return false; }
 }
 /** One batch; caller repeats using nextCursor. No client polls X or sends its own 6/3/1 reminders. */
@@ -329,10 +335,11 @@ export async function dispatchProduct() {
         // WeChat bridge uses the same authenticated relay contract and its own server-side credentials.
         if(!relayConfigured()) throw new Error("provider_unconfigured");
       }
-      const payload=JSON.stringify({deliveryId:item.id,kind:record.kind,target,title:item.payload.title,body:item.payload.body,eventId:item.event_id});
+      const requestId=item.payload.requestId||item.id;
+      const payload=JSON.stringify({requestId,deliveryId:item.id,kind:record.kind,target,title:item.payload.title,body:item.payload.body,eventId:item.event_id});
       const ts=String(Date.now()),sig=crypto.createHmac("sha256",process.env.PRODUCT_PUSH_RELAY_SECRET!).update(ts+"."+payload).digest("hex");
       const r=await fetch(process.env.PRODUCT_PUSH_RELAY_URL!,{method:"POST",redirect:"error",signal:AbortSignal.timeout(10000),
-        headers:{"Content-Type":"application/json","X-ResetWatch-Time":ts,"X-ResetWatch-Signature":sig,"Idempotency-Key":item.id},body:payload});
+        headers:{"Content-Type":"application/json","X-ResetWatch-Time":ts,"X-ResetWatch-Signature":sig,"Idempotency-Key":requestId},body:payload});
       const response=await r.json();
       if(r.ok&&response.accepted===true&&typeof response.providerId==="string"&&response.providerId.length<=200) {
         await c.query("update product_deliveries set status='accepted',provider_id=$2,accepted_at=now() where id=$1",[item.id,response.providerId]);

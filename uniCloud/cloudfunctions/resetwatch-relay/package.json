@@ -1,0 +1,16 @@
+{
+  "name": "resetwatch-relay",
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.js",
+  "type": "commonjs",
+  "extensions": {
+    "uni-cloud-push": {}
+  },
+  "cloudfunction-config": {
+    "runtime": "Nodejs18",
+    "memorySize": 256,
+    "timeout": 20,
+    "path": ""
+  }
+}

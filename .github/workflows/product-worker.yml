@@ -1,0 +1,30 @@
+name: Product Reminder Worker (opt-in)
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: product-reminder-worker
+  cancel-in-progress: false
+jobs:
+  reminders:
+    if: vars.PRODUCT_WORKER_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Plan deduplicated reminders and dispatch only when separately enabled
+        env:
+          PRODUCT_SITE_URL: ${{ vars.PRODUCT_SITE_URL }}
+          PRODUCT_WORKER_SECRET: ${{ secrets.PRODUCT_WORKER_SECRET }}
+          PRODUCT_SEND_ENABLED: ${{ vars.PRODUCT_SEND_ENABLED }}
+        run: |
+          node scripts/run-product-worker.mjs --plan
+          if [ "$PRODUCT_SEND_ENABLED" = "true" ]; then
+            node scripts/run-product-worker.mjs --dispatch
+          fi
