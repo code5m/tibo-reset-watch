@@ -21,7 +21,7 @@ jobs:
             native/widgets/ios/ResetWatchWidget.swift
       - run: plutil -lint native/widgets/ios/Info.plist
   android:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
@@ -29,13 +29,30 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
-      - uses: android-actions/setup-android@v3
+      - name: Verify hosted runner Android SDK (no deprecated tools download)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p test-output/native
+          : "${ANDROID_HOME:?Hosted runner Android SDK missing}"
+          printf 'ANDROID_HOME=%s\n' "$ANDROID_HOME" | tee test-output/native/sdk.txt
+          java -version 2>&1 | tee -a test-output/native/sdk.txt
+          if [ ! -f "$ANDROID_HOME/platforms/android-35/android.jar" ] || [ ! -x "$ANDROID_HOME/build-tools/35.0.0/aapt2" ]; then
+            SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)"
+            test -n "$SDKMANAGER"
+            "$SDKMANAGER" --sdk_root="$ANDROID_HOME" "platforms;android-35" "build-tools;35.0.0" 2>&1 | tee -a test-output/native/sdk.txt
+          fi
+          test -f "$ANDROID_HOME/platforms/android-35/android.jar"
+          test -x "$ANDROID_HOME/build-tools/35.0.0/aapt2"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt2" version | tee -a test-output/native/sdk.txt
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.9"
-      - run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
       - name: Compile actual AppWidget library (not a signed app)
-        run: gradle --no-daemon -p native/widgets/android assembleDebug lintDebug
+        shell: bash
+        run: |
+          set -euo pipefail
+          gradle --no-daemon --stacktrace -p native/widgets/android assembleDebug lintDebug 2>&1 | tee test-output/native/android-build.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -43,5 +60,6 @@ jobs:
           path: |
             native/widgets/android/build/outputs/aar/
             native/widgets/android/build/reports/
+            test-output/native/
           retention-days: 14
-          if-no-files-found: warn
+          if-no-files-found: error
