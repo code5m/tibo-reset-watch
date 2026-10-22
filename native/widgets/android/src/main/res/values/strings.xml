@@ -1,0 +1,9 @@
+<resources>
+  <!-- Override in the trusted host before release. Not a secret. -->
+  <string name="resetwatch_api_origin" translatable="false"></string>
+  <string name="resetwatch_widget_note">刷新由系统调度 · 个人到账未知</string>
+  <string name="resetwatch_brand" translatable="false">ResetWatch</string>
+  <string name="resetwatch_loading">尚未读取</string>
+  <string name="resetwatch_unknown">状态未知</string>
+  <string name="resetwatch_deadline_unknown">重置最晚时间未知</string>
+</resources>

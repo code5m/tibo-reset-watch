@@ -145,6 +145,7 @@ function fillSignal(){
   $("edit-evidence").value="unverified";$("edit-translation").value="";$("edit-explanation").value="";$("edit-deadline").value="";
 }
 function calculateEod(){
+  if(isDemo){$("review-status").textContent="演示模式禁止操作生产目录。";return;}
   const p=pendingSignals[Number($("signal-picker").value)||0];
   if(!p){$("review-status").textContent="请先选择原帖。";return;}
   try{
@@ -155,6 +156,7 @@ function calculateEod(){
   }catch(e){$("review-status").textContent=e.message;}
 }
 function addPost(){
+  if(isDemo){$("review-status").textContent="演示模式禁止操作生产目录。";return;}
   try{
     if(catalogVersion===null)throw new Error("请先读取目录并登录管理员。");
     const p=pendingSignals[Number($("signal-picker").value)||0];if(!p)throw new Error("请先选择待审原帖。");
@@ -178,6 +180,7 @@ function addPost(){
 }
 
 async function saveCatalog(){
+  if(isDemo){$("review-status").textContent="演示模式禁止保存生产目录。";return;}
   if(catalogVersion===null){$("review-status").textContent="请先读取目录，避免覆盖现有修改。";return;}
   try{
     const catalog=validateCatalog(JSON.parse($("catalog-editor").value));

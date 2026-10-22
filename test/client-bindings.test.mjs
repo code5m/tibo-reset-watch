@@ -82,3 +82,16 @@ test("untrusted malformed delivery payload ignored",async()=>{
 test("revoking consent removes listener and pending receipt IDs",()=>{
  push.forgetPushConsent();assert.ok(!callback);assert.equal(storage.size,0);
 });
+test("parallel receipt arrivals are serialized without dropping new IDs",async()=>{
+ setup();await push.authorizePush({nativePush:true},false);
+ const second="22345678-1234-4234-8234-123456789abc";
+ let resume;const wait=new Promise(r=>resume=r);let first=true;
+ globalThis.__fakeProduct=async(view,body)=>{calls.push(body);if(first){first=false;await wait;}return{recorded:true};};
+ callback({type:"receive",data:{payload:{deliveryId}}});
+ callback({type:"receive",data:{payload:{deliveryId:second}}});
+ assert.equal(storage.get("resetwatch.receipts."+globalThis.__clientOrigin).length,2);
+ resume();await push.flushReceipts();
+ assert.deepEqual(storage.get("resetwatch.receipts."+globalThis.__clientOrigin),[]);
+ assert.equal(calls.filter(c=>c.action==="delivery.ack"&&c.id===second).length,1);
+ push.forgetPushConsent();
+});

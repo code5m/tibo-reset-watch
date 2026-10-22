@@ -1,0 +1,10 @@
+{
+  "requestPermissions": [{"name": "ohos.permission.INTERNET"}],
+  "extensionAbilities": [{
+    "name": "ResetWatchFormAbility",
+    "srcEntry": "./ets/entryformability/ResetWatchFormAbility.ets",
+    "type": "form",
+    "exported": true,
+    "metadata": [{"name": "ohos.extension.form", "resource": "$profile:form_config"}]
+  }]
+}

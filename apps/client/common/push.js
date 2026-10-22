@@ -2,7 +2,7 @@ import config from "../config.json";
 import {product} from "./product.js";
 import {apiOrigin} from "./api.js";
 
-let listener=null;
+let listener=null, flushing=null, consentEpoch=0;
 const storeKey=()=> "resetwatch.pushConsent."+apiOrigin();
 const receiptKey=()=> "resetwatch.receipts."+apiOrigin();
 const UUID=/^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i;
@@ -51,15 +51,30 @@ export function startPushListening(){
  };
  uni.onPushMessage(listener);
 }
-export async function flushReceipts(){
- let items=uni.getStorageSync(receiptKey())||[];if(!Array.isArray(items))return;
- for(const item of [...items]){
-  try{await product("",{action:"delivery.ack",id:item.id,stage:item.stage});}
-  catch(e){if(e.status!==404)break;}
-  items=items.filter(x=>x.id!==item.id||x.stage!==item.stage);uni.setStorageSync(receiptKey(),items);
- }
+export function flushReceipts(){
+ if(flushing)return flushing;
+ const origin=apiOrigin(),key=receiptKey(),epoch=consentEpoch;
+ flushing=(async()=>{
+  for(let n=0;n<100;n++){
+   if(epoch!==consentEpoch||apiOrigin()!==origin)return;
+   const items=uni.getStorageSync(key)||[];
+   if(!Array.isArray(items)||!items.length)return;
+   const item=items[0];
+   if(!UUID.test(item?.id||"")||!["received","opened"].includes(item.stage)){
+    uni.setStorageSync(key,items.slice(1));continue;
+   }
+   try{await product("",{action:"delivery.ack",id:item.id,stage:item.stage});}
+   catch(e){if(e.status!==404)return;}
+   if(epoch!==consentEpoch||apiOrigin()!==origin)return;
+   // Re-read after await: a newly received message must not be overwritten by an old snapshot.
+   const latest=uni.getStorageSync(key)||[];
+   if(Array.isArray(latest))uni.setStorageSync(key,latest.filter(x=>x.id!==item.id||x.stage!==item.stage));
+  }
+ })().finally(()=>{flushing=null;});
+ return flushing;
 }
 export function forgetPushConsent(){
+ consentEpoch++;
  try{uni.removeStorageSync(storeKey());uni.removeStorageSync(receiptKey());}catch{}
  stopPushListening();
 }

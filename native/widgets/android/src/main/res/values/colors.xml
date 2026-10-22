@@ -1,0 +1,6 @@
+<resources>
+  <color name="resetwatch_background">#E9F3EE</color>
+  <color name="resetwatch_accent">#14624D</color>
+  <color name="resetwatch_text">#182D29</color>
+  <color name="resetwatch_muted">#576D66</color>
+</resources>

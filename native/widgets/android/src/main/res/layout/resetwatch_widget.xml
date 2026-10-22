@@ -1,0 +1,16 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+  android:id="@+id/resetwatch_root" android:layout_width="match_parent" android:layout_height="match_parent"
+  android:orientation="vertical" android:padding="16dp" android:background="@drawable/resetwatch_background">
+  <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+    android:text="@string/resetwatch_brand" android:textSize="12sp" android:textStyle="bold" android:textColor="@color/resetwatch_accent" />
+  <TextView android:id="@+id/resetwatch_title" android:layout_width="match_parent" android:layout_height="wrap_content"
+    android:text="@string/resetwatch_loading" android:textSize="18sp" android:textStyle="bold" android:textColor="@color/resetwatch_text" android:maxLines="2" />
+  <TextView android:id="@+id/resetwatch_state" android:layout_width="match_parent" android:layout_height="wrap_content"
+    android:text="@string/resetwatch_unknown" android:textSize="14sp" android:textColor="@color/resetwatch_text" />
+  <TextView android:id="@+id/resetwatch_window" android:layout_width="match_parent" android:layout_height="wrap_content"
+    android:text="@string/resetwatch_deadline_unknown" android:textSize="13sp" android:textColor="@color/resetwatch_text" />
+  <TextView android:id="@+id/resetwatch_updated" android:layout_width="match_parent" android:layout_height="wrap_content"
+    android:textSize="11sp" android:textColor="@color/resetwatch_muted" />
+  <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+    android:text="@string/resetwatch_widget_note" android:textSize="11sp" android:textColor="@color/resetwatch_muted" />
+</LinearLayout>

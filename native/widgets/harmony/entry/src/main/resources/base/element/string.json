@@ -1,0 +1,12 @@
+{
+  "string": [
+    {
+      "name": "resetwatch_widget_name",
+      "value": "ResetWatch"
+    },
+    {
+      "name": "resetwatch_widget_description",
+      "value": "公开事件、北京时间与参考截止；个人到账未知"
+    }
+  ]
+}

@@ -8,3 +8,7 @@ test-output/
 __pycache__/
 *.pyc
 design-artifacts/
+
+.gradle/
+.next/
+native/widgets/android/build/

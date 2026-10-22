@@ -1,0 +1,25 @@
+{
+  "forms": [
+    {
+      "name": "ResetWatchPublicStatus",
+      "displayName": "$string:resetwatch_widget_name",
+      "description": "$string:resetwatch_widget_description",
+      "src": "./ets/widget/pages/ResetWatchCard.ets",
+      "uiSyntax": "arkts",
+      "window": {
+        "autoDesignWidth": true,
+        "designWidth": 720
+      },
+      "isDefault": true,
+      "colorMode": "auto",
+      "isDynamic": true,
+      "supportDimensions": [
+        "2*2",
+        "2*4"
+      ],
+      "defaultDimension": "2*4",
+      "updateEnabled": true,
+      "updateDuration": 1
+    }
+  ]
+}
