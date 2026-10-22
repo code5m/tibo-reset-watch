@@ -1,0 +1,5 @@
+import { VaultBackend, VaultInvoke, VaultCallback } from '../interface.uts'
+export const vaultBackend: VaultBackend = function(): string { return "ios-keychain" }
+export const invokeVault: VaultInvoke = function(operation: string, origin: string, value: string, callback: VaultCallback) {
+  ResetWatchVault.invoke(operation, origin, value, callback)
+}

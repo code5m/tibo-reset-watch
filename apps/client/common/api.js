@@ -3,7 +3,12 @@ export function normalizeOrigin(value) {
   const raw = String(value || "").trim();
   // Public API origin only. Never accept a token, credentials, path, query, or fragment.
   if (!/^https:\/\/[a-z0-9.-]+(?::\d{1,5})?\/?$/i.test(raw)) throw new Error("请填写 HTTPS 服务域名，不含路径、账号或密钥");
-  return raw.replace(/\/$/, "");
+  const match = raw.match(/^https:\/\/([^/:]+)(?::([0-9]+))?\/?$/i);
+  if (!match) throw new Error("\u670d\u52a1\u57df\u540d\u683c\u5f0f\u4e0d\u6b63\u786e");
+  const host = match[1].toLowerCase(), port = match[2] ? Number(match[2]) : 443;
+  if (host.length > 253 || host.split(".").some(part => !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(part)) || port < 1 || port > 65535)
+    throw new Error("\u670d\u52a1\u57df\u540d\u6216\u7aef\u53e3\u4e0d\u6b63\u786e");
+  return "https://" + host + (port === 443 ? "" : ":" + port);
 }
 export function apiOrigin() {
   return normalizeOrigin(uni.getStorageSync("resetwatch.apiOrigin") || config.apiBaseUrl);

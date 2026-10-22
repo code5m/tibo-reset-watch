@@ -1,0 +1,72 @@
+name: Secure Session Native Gates
+on:
+  pull_request:
+    paths: ["apps/client/**", "native/secure-session/**", "test/client*", ".github/workflows/secure-session.yml"]
+  push:
+    branches: [main]
+    paths: ["apps/client/**", "native/secure-session/**", "test/client*", ".github/workflows/secure-session.yml"]
+permissions:
+  contents: read
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - run: node --test test/client-session.test.mjs test/client-bindings.test.mjs
+  ios:
+    runs-on: macos-14
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Typecheck actual Keychain source against iOS simulator SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          SRC=apps/client/uni_modules/resetwatch-secure-session/utssdk/app-ios/ResetWatchVault.swift
+          SDK="$(xcrun --sdk iphonesimulator --show-sdk-path)"
+          xcrun swiftc -swift-version 5 -typecheck -parse-as-library -sdk "$SDK" -target arm64-apple-ios17.0-simulator "$SRC"
+      - name: Exercise same storage source against macOS Keychain (not an iOS device test)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p test-output
+          xcrun swiftc -swift-version 5 apps/client/uni_modules/resetwatch-secure-session/utssdk/app-ios/ResetWatchVault.swift native/secure-session/tests/KeychainSmoke.swift -o test-output/keychain-smoke
+          codesign --force --sign - test-output/keychain-smoke
+          test-output/keychain-smoke | tee test-output/keychain.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-keychain-checks-${{ github.sha }}
+          path: test-output/keychain.log
+          if-no-files-found: warn
+  android:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+      - name: Compile and lint actual Keystore implementation (library only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p test-output
+          gradle --no-daemon --stacktrace -p native/secure-session/android assembleDebug lintDebug 2>&1 | tee test-output/secure-session-android.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-secure-session-${{ github.sha }}
+          path: |
+            native/secure-session/android/build/outputs/aar/
+            native/secure-session/android/build/reports/
+            test-output/secure-session-android.log
+          if-no-files-found: error
